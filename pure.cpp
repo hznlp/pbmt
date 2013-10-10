@@ -196,6 +196,66 @@ bool GenerateNumerator(vector<vector<double>>& denom){
     }
     return true;
 }
+bool ExtractPhrasePairs(const string& src, const string& tgt, const string& out ){
+    if(src==""||tgt==""||out=="")return false; 
+    vector<vector<string>> src_corpus,tgt_corpus;
+    vector<vector<int>> src_max_lens,tgt_max_lens;
+    string log_prefix="";
+    string logf="",loge="";
+    if(log_prefix!=""){
+        logf="log.f";
+        loge="log.e";
+    }
+
+    PhraseCutoff(src,logf,&src_corpus,&src_max_lens);
+    PhraseCutoff(tgt,loge,&tgt_corpus,&tgt_max_lens);
+    
+    vector<vector<double>> denom(100,vector<double>(100,0)),numer=denom;
+    GenerateDenominator(denom);
+    GenerateNumerator(numer);
+
+    cout<<"denom:\n";
+    for(auto& item:denom){
+        for(auto& j:item)
+            cout<<j<<" ";
+        cout<<endl;
+    }
+    cout<<"numer:\n";
+    for(auto& item:numer){
+        for(auto& j:item)
+            cout<<j<<" ";
+        cout<<endl;
+    }
+
+    ofstream os(out.c_str());
+    for(int sid=0;sid<src_corpus.size();sid++){
+        vector<string>& ssent=src_corpus[sid];
+        vector<string>& tsent=tgt_corpus[sid];
+        int n=ssent.size();
+        int m=tsent.size();
+        if(n>40||m>40)continue;
+        for(int i=0;i<ssent.size();i++){
+            for(int j=0;j<tsent.size();j++){
+                string sphrase="";
+                for(int k=0;k<src_max_lens[sid][i];k++){
+                    if(sphrase!="")sphrase+=" ";
+                    sphrase+=ssent[i+k];
+                    string tphrase="";
+                    for(int l=0;l<tgt_max_lens[sid][j];l++){
+                        if((k+1)>4*(l+1)||(l+1)>4*(k+1))continue;
+                        if(tphrase!="")tphrase+=" ";
+                        tphrase+=tsent[j+l];
+                        double prob=1E-5;
+                        if(n-k-2>0&&m-l-2>0&&n>1&&m>1)prob=numer[n-k-2][m-l-2]/denom[n-1][m-1];
+                        os<<sphrase<<" => "<<tphrase<<" ||| "<<prob
+                            <<endl;
+                    }
+                }
+            }
+        }
+    }
+    os.close();
+}
 
 void usage(){
     cerr<<"proc -src=srcfile [-tar=tarfile]"<<endl;
@@ -229,63 +289,7 @@ int main(int ac, char** av)
         cout << desc << endl;
         return 1;
     }
-    
-    vector<vector<string>> src_corpus,tgt_corpus;
-    vector<vector<int>> src_max_lens,tgt_max_lens;
-    string logf="",loge="";
-    if(log_prefix!=""){
-        logf="log.f";
-        loge="log.e";
-    }
-
-    PhraseCutoff(src,logf,&src_corpus,&src_max_lens);
-    PhraseCutoff(tgt,loge,&tgt_corpus,&tgt_max_lens);
-    
-    vector<vector<double>> denom(100,vector<double>(100,0)),numer=denom;
-    GenerateDenominator(denom);
-    GenerateNumerator(numer);
-
-    cout<<"denom:\n";
-    for(auto& item:denom){
-        for(auto& j:item)
-            cout<<j<<" ";
-        cout<<endl;
-    }
-    cout<<"numer:\n";
-    for(auto& item:numer){
-        for(auto& j:item)
-            cout<<j<<" ";
-        cout<<endl;
-    }
-
-    ofstream os("pt");
-    for(int sid=0;sid<src_corpus.size();sid++){
-        vector<string>& ssent=src_corpus[sid];
-        vector<string>& tsent=tgt_corpus[sid];
-        int n=ssent.size();
-        int m=tsent.size();
-        if(n>40||m>40)continue;
-        for(int i=0;i<ssent.size();i++){
-            for(int j=0;j<tsent.size();j++){
-                string sphrase="";
-                for(int k=0;k<src_max_lens[sid][i];k++){
-                    if(sphrase!="")sphrase+=" ";
-                    sphrase+=ssent[i+k];
-                    string tphrase="";
-                    for(int l=0;l<tgt_max_lens[sid][j];l++){
-                        if((k+1)>4*(l+1)||(l+1)>4*(k+1))continue;
-                        if(tphrase!="")tphrase+=" ";
-                        tphrase+=tsent[j+l];
-                        double prob=1;
-                        if(n-k-2>0&&m-l-2>0&&n>1&&m>1)prob=numer[n-k-2][m-l-2]/denom[n-1][m-1];
-                        os<<sphrase<<" => "<<tphrase<<" ||| "<<prob
-                            <<endl;
-                    }
-                }
-            }
-        }
-    }
-    os.close();
+    ExtractPhrasePairs(src,tgt,"pt");    
 }
 
 
