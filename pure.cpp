@@ -4,13 +4,15 @@
 #include <vector>
 #include <list>
 #include <unordered_map>
+#include <cassert>
+#include <cmath>
+#include <algorithm>
 #include <boost/range/irange.hpp>
 
 #include <boost/tokenizer.hpp>
 #include <boost/program_options.hpp>
 #include <boost/algorithm/string.hpp>
-#include "JKArgs.h"
-
+using std::min;
 using std::list;
 using std::unordered_map;
 using std::string;
@@ -120,29 +122,106 @@ void PhraseCutoff(const string& filename, const string& log_prefix,
     }
 }
 
+void GenerateFactorial(vector<double>& fac){
+    if(fac.size()==0)return;
+    fac[0]=1;
+    for(int i=1;i<fac.size();i++){
+        fac[i]=fac[i-1]*i;
+    }
+}
+
+bool GenerateCombinatorial(vector<vector<double>>& com){
+    int dim=com.size();
+    if(dim==0)return false;
+    if(dim!=com[0].size())return false;
+    for(int i=1;i<com.size()-1;i++){
+        com[i][0]=1;
+        for(int j=1;j<=i;j++){
+            com[i][j]=com[i][j-1]*(i-j+1)/j;
+            cout<<com[i][j]<<" ";
+        }
+        cout<<endl;
+    }
+    
+}
+
+double CalculateDenominator(vector<vector<double>>& com, vector<double>& fac, int n, int m){
+    int dim=min(n,m);
+    double sum=0;
+    assert(dim+2<com.size()&&dim+2<fac.size());
+    for(int i=0;i<=dim;i++){
+        sum+=com[n][i]*com[m][i]*fac[i+1];
+    }
+    return sum;
+}
+
+double CalculateNumerator(vector<vector<double>>& com, vector<double>& fac, int n, int m){
+    int dim=min(n,m);
+    double sum=0;
+    assert(dim+2<com.size()&&dim+2<fac.size());
+    for(int i=0;i<=dim;i++){
+        sum+=com[n][i]*com[m][i]*fac[i+2];
+    }
+    return sum;
+}
+
+bool GenerateDenominator(vector<vector<double>>& denom){
+    int dim=denom.size();
+    if(dim==0)return false;
+    if(dim!=denom[0].size())return false;
+    vector<vector<double>> com(dim+3,vector<double>(dim+3,0));
+    vector<double> fac(dim+3,0);
+    GenerateCombinatorial(com);
+    GenerateFactorial(fac);
+    for(int i=1;i<dim;i++){
+        for(int j=1;j<dim;j++){
+            denom[i][j]=CalculateDenominator(com,fac,i,j);
+        }
+    }
+    return true;
+}
+
+bool GenerateNumerator(vector<vector<double>>& denom){
+    int dim=denom.size();
+    if(dim==0)return false;
+    if(dim!=denom[0].size())return false;
+    vector<vector<double>> com(dim+3,vector<double>(dim+3,0));
+    vector<double> fac(dim+3,0);
+    GenerateCombinatorial(com);
+    GenerateFactorial(fac);
+    for(int i=1;i<dim;i++){
+        for(int j=1;j<dim;j++){
+            denom[i][j]=CalculateNumerator(com,fac,i,j);
+        }
+    }
+    return true;
+}
+
 void usage(){
     cerr<<"proc -src=srcfile [-tar=tarfile]"<<endl;
     exit(1);
 }
+
 int main(int ac, char** av)
 {
     namespace po = boost::program_options;
-    po::options_description desc;
+    po::options_description desc("Allowed options");
+    string src="",tgt="",log_prefix="";
     desc.add_options()
             ("help", "produce help message")
-            ("src", po::value<string>()->required(), "source file name")
-            ("tgt", po::value<string>()->required(), "target file name")
-            ("log", "log error infomation")
+            ("src", po::value<string>(&src)->required(), "source file name")
+            ("tgt", po::value<string>(&tgt), "target file name")
+            ("log", po::value<string>(&log_prefix),"log prefix")
        ;
     po::variables_map vm;
  
     try{
-      po::store(po::parse_command_line(ac, av, desc), vm);
-      po::notify(vm);    
+        po::store(po::parse_command_line(ac, av, desc), vm);
+        po::notify(vm);
     }
     catch(po::error& e){ 
-      std::cerr << "ERROR: " << e.what() << std::endl << std::endl; 
-      std::cerr << desc << std::endl; 
+        cerr << "ERROR: " << e.what() << endl << endl; 
+        cerr << desc << endl; 
       return -1; 
     } 
 
@@ -151,30 +230,41 @@ int main(int ac, char** av)
         return 1;
     }
     
-    string src="",tgt="";
-    if (vm.count("src")) {
-    	src=vm["src"].as<string>();
-    }
-    if (vm.count("tgt")) {
-    	tgt=vm["tgt"].as<string>();
-    }
-       
-    
     vector<vector<string>> src_corpus,tgt_corpus;
     vector<vector<int>> src_max_lens,tgt_max_lens;
     string logf="",loge="";
-    if(vm.count("log")){
+    if(log_prefix!=""){
         logf="log.f";
         loge="log.e";
     }
 
     PhraseCutoff(src,logf,&src_corpus,&src_max_lens);
     PhraseCutoff(tgt,loge,&tgt_corpus,&tgt_max_lens);
+    
+    vector<vector<double>> denom(100,vector<double>(100,0)),numer=denom;
+    GenerateDenominator(denom);
+    GenerateNumerator(numer);
+
+    cout<<"denom:\n";
+    for(auto& item:denom){
+        for(auto& j:item)
+            cout<<j<<" ";
+        cout<<endl;
+    }
+    cout<<"numer:\n";
+    for(auto& item:numer){
+        for(auto& j:item)
+            cout<<j<<" ";
+        cout<<endl;
+    }
 
     ofstream os("pt");
     for(int sid=0;sid<src_corpus.size();sid++){
         vector<string>& ssent=src_corpus[sid];
         vector<string>& tsent=tgt_corpus[sid];
+        int n=ssent.size();
+        int m=tsent.size();
+        if(n>40||m>40)continue;
         for(int i=0;i<ssent.size();i++){
             for(int j=0;j<tsent.size();j++){
                 string sphrase="";
@@ -186,7 +276,10 @@ int main(int ac, char** av)
                         if((k+1)>4*(l+1)||(l+1)>4*(k+1))continue;
                         if(tphrase!="")tphrase+=" ";
                         tphrase+=tsent[j+l];
-                        os<<sphrase<<" => "<<tphrase<<endl;
+                        double prob=1;
+                        if(n-k-2>0&&m-l-2>0&&n>1&&m>1)prob=numer[n-k-2][m-l-2]/denom[n-1][m-1];
+                        os<<sphrase<<" => "<<tphrase<<" ||| "<<prob
+                            <<endl;
                     }
                 }
             }
@@ -194,4 +287,5 @@ int main(int ac, char** av)
     }
     os.close();
 }
+
 
