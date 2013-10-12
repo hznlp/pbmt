@@ -287,7 +287,7 @@ bool ExtractPhrasePairs(const string& src,
     if(!plain){
         for(auto& m: pt)
             for(auto& i: m.second)
-                os<<m.first<<" => "<<i.first<<" ||| "<<i.second<<endl;
+                os<<m.first<<" ||| "<<i.first<<" ||| "<<i.second<<endl;
     }
     os.close();
     return 1;
@@ -329,7 +329,7 @@ void Score(JKArgs& args){
     for(auto& m: pt){
         double ssum=src_sum[m.first];
         for(auto& i: m.second){
-            fout<<m.first<<" => "<<i.first<<" ||| "<<i.second/ssum<<" "<<i.second/tgt_sum[i.first]<<endl;
+            fout<<m.first<<" ||| "<<i.first<<" ||| 1 "<<i.second/ssum<<" 1 "<<i.second/tgt_sum[i.first]<<" 2.718"<<endl;
         }
     }
     fout.close();
