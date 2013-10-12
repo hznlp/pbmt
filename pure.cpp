@@ -317,7 +317,7 @@ void LoadLex(ifstream& is, LexDic& lex){
 double ScoreLex(vector<string>& src, vector<string>& tgt, LexDic& lex_s2t){
     double result=1;
     for(auto& t: tgt){
-        double s2t=0;
+        double s2t=lex_s2t["<NULL>"][t];
         for(auto& s: src)
             s2t+=lex_s2t[s][t];
         result*=s2t;
