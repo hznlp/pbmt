@@ -378,12 +378,12 @@ void Score(JKArgs& args){
                         PhraseInfo(lex_s2t_score,lex_t2s_score,i.second.ps2t,i.second.pt2s)));
                 scores.push_back(lex_s2t_score+lex_t2s_score);
             }
-            m.second.clear();
+            pt[m.first].clear();
             sort(scores.rbegin(),scores.rend());
             double threshold=scores[scores.size()>(uint64_t)nbest?nbest:scores.size()-1];
             for(auto& p:phrases){
                 if(p.second.ls2t+p.second.lt2s>=threshold){
-                    m.second[p.first]=p.second;
+                    pt[m.first][p.first]=p.second;
                 }
             }
         }
