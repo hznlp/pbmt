@@ -296,7 +296,7 @@ void usage(){
     cerr<<
 R"(
 proc -extract -src=source_file -tgt=target_file -o=output_file
-     -score -i=input -o=output [-nbest=int] [-lengthsort]
+     -score -i=input -o=output [-nbest=int] [-lengthsort] [-lex_s2t=file] [-lex_t2s=file]
     
 )";
     exit(-1);
@@ -364,12 +364,12 @@ void Score(JKArgs& args){
     if(uselex){
         LoadLex(flex_s2t, lex_s2t);
         LoadLex(flex_t2s, lex_t2s);
-        vector<pair<string,PhraseInfo>> phrases;
-        vector<double> scores;
         for(auto& m: pt){
             vector<string> src;
             split(src,m.first,is_any_of(" \t"));
             double ssum=src_sum[m.first];
+            vector<pair<string,PhraseInfo>> phrases;
+            vector<double> scores;
             for(auto& i: m.second){
                 vector<string> tgt;
                 split(tgt,i.first,is_any_of(" \t"));
