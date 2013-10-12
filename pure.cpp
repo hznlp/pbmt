@@ -327,8 +327,10 @@ double ScoreLex(vector<string>& src, vector<string>& tgt, LexDic& lex_s2t){
 
 struct PhraseInfo {
     double ps2t,pt2s,ls2t,lt2s;
+    PhraseInfo(){ps2t=pt2s=ls2t=lt2s=1;};
     PhraseInfo(double x,double y, double i, double j){ps2t=x;pt2s=y;ls2t=i;lt2s=j;}
 };
+typedef map<string,map<string,PhraseInfo>> PhraseTable;
 
 void Score(JKArgs& args){
     if(!args.count("i")||!args.count("o"))usage();
@@ -337,7 +339,8 @@ void Score(JKArgs& args){
     int nbest=args.count("nbest")?stoi(args["nbest"]):100;
     bool uselex=false;
     ifstream flex_s2t,flex_t2s;
-    LexDic pt,lex_s2t,lex_t2s;
+    LexDic lex_s2t,lex_t2s;
+    PhraseTable pt;
     
     if(args.count("lex_s2t"))flex_s2t.open(args["lex_s2t"]);
     if(args.count("lex_t2s"))flex_t2s.open(args["lex_t2s"]);
@@ -352,22 +355,17 @@ void Score(JKArgs& args){
         vector<string> content;
         split_regex(content,line,regex(" => | \\|\\|\\| "));
         if(content.size()!=3)continue;
-        pt[content[0]][content[1]]+=stod(content[2]);
+        pt[content[0]][content[1]]=PhraseInfo((double)stod(content[2]),(double)stod(content[2]),(double)1.0,(double)1.0);
+        
     }
     map<string,double> src_sum,tgt_sum;
-    for(auto& m: pt){
-        for(auto& i: m.second){
-            src_sum[m.first]+=i.second;
-            tgt_sum[i.first]+=i.second;
-        }
-    }
+    
     if(uselex){
         LoadLex(flex_s2t, lex_s2t);
         LoadLex(flex_t2s, lex_t2s);
         for(auto& m: pt){
             vector<string> src;
             split(src,m.first,is_any_of(" \t"));
-            double ssum=src_sum[m.first];
             vector<pair<string,PhraseInfo>> phrases;
             vector<double> scores;
             for(auto& i: m.second){
@@ -377,29 +375,35 @@ void Score(JKArgs& args){
                 double lex_t2s_score=ScoreLex(tgt, src, lex_t2s);
                 phrases.push_back(
                         make_pair(i.first,
-                        PhraseInfo(lex_s2t_score,lex_t2s_score,i.second/ssum,i.second/tgt_sum[i.first])));
+                        PhraseInfo(lex_s2t_score,lex_t2s_score,i.second.ps2t,i.second.pt2s)));
                 scores.push_back(lex_s2t_score+lex_t2s_score);
-                //fout<<m.first<<" ||| "<<i.first<<" ||| "<<lex_s2t_score<<" "
-                //    <<i.second/ssum<<" "<<lex_t2s_score<<" "<<i.second/tgt_sum[i.first]<<" 2.718"<<endl;
             }
+            m.second.clear();
             sort(scores.rbegin(),scores.rend());
             double threshold=scores[scores.size()>(uint64_t)nbest?nbest:scores.size()-1];
             for(auto& p:phrases){
                 if(p.second.ls2t+p.second.lt2s>=threshold){
-                    fout<<m.first<<" ||| "<<p.first<<" ||| "<<p.second.ls2t<<" "
-                    <<p.second.ps2t<<" "<<p.second.lt2s<<" "<<p.second.pt2s<<" 2.718"<<endl;
+                    m.second[p.first]=p.second;
                 }
             }
         }
     }
-    else{
-        for(auto& m: pt){
-            double ssum=src_sum[m.first];
-            for(auto& i: m.second){
-                fout<<m.first<<" ||| "<<i.first<<" ||| 1 "<<i.second/ssum<<" 1 "<<i.second/tgt_sum[i.first]<<" 2.718"<<endl;
-            }
+    
+    for(auto& m: pt){
+        for(auto& i: m.second){
+            src_sum[m.first]+=i.second.ps2t;
+            tgt_sum[i.first]+=i.second.ps2t;
         }
     }
+    for(auto& m: pt){
+        double ssum=src_sum[m.first];
+        for(auto& p: m.second){
+            auto tsum=tgt_sum[p.first];
+            fout<<m.first<<" ||| "<<p.first<<" ||| "<<p.second.ls2t<<" "
+            <<p.second.ps2t/ssum<<" "<<p.second.lt2s<<" "<<p.second.pt2s/tsum<<" 2.718"<<endl;
+        }
+    }
+    
     fout.close();
 }
 
