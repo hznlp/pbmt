@@ -302,12 +302,48 @@ proc -extract -src=source_file -tgt=target_file -o=output_file
     exit(-1);
 }
 
+typedef map<string,map<string,double>> LexDic;
+
+void LoadLex(ifstream& is, LexDic& lex){
+    for(string line; is.good();){
+        string src="",tgt="";
+        double score;
+        is>>src>>tgt>>score;
+        if(is.good()&&src!="")
+            lex[src][tgt]=score;
+    }
+}
+
+double ScoreLex(vector<string>& src, vector<string>& tgt, LexDic& lex_s2t){
+    double result=1;
+    for(auto& t: tgt){
+        double s2t=0;
+        for(auto& s: src)
+            s2t+=lex_s2t[s][t];
+        result*=s2t;
+    }
+    return result;
+}
+
+struct PhraseInfo {
+    double ps2t,pt2s,ls2t,lt2s;
+    PhraseInfo(double x,double y, double i, double j){ps2t=x;pt2s=y;ls2t=i;lt2s=j;}
+};
+
 void Score(JKArgs& args){
     if(!args.count("i")||!args.count("o"))usage();
     const string& in=args["i"];
     const string& out=args["o"];
     int nbest=args.count("nbest")?stoi(args["nbest"]):100;
-    map<string, map<string, double> > pt;
+    bool uselex=false;
+    ifstream flex_s2t,flex_t2s;
+    LexDic pt,lex_s2t,lex_t2s;
+    
+    if(args.count("lex_s2t"))flex_s2t.open(args["lex_s2t"]);
+    if(args.count("lex_t2s"))flex_s2t.open(args["lex_t2s"]);
+    if(args.count("lex_s2t")||args.count("lex_t2s"))uselex=true;
+    
+    
     ifstream fin(in);
     ofstream fout(out);
     string prev_src="",prev_tgt="";
@@ -326,14 +362,48 @@ void Score(JKArgs& args){
             tgt_sum[i.first]+=i.second;
         }
     }
-    for(auto& m: pt){
-        double ssum=src_sum[m.first];
-        for(auto& i: m.second){
-            fout<<m.first<<" ||| "<<i.first<<" ||| 1 "<<i.second/ssum<<" 1 "<<i.second/tgt_sum[i.first]<<" 2.718"<<endl;
+    if(uselex){
+        LoadLex(flex_s2t, lex_s2t);
+        LoadLex(flex_t2s, lex_t2s);
+        vector<pair<string,PhraseInfo>> phrases;
+        vector<double> scores;
+        for(auto& m: pt){
+            vector<string> src;
+            split(src,m.first,is_any_of(" \t"));
+            double ssum=src_sum[m.first];
+            for(auto& i: m.second){
+                vector<string> tgt;
+                split(tgt,i.first,is_any_of(" \t"));
+                double lex_s2t_score=ScoreLex(src, tgt, lex_s2t);
+                double lex_t2s_score=ScoreLex(tgt, src, lex_t2s);
+                phrases.push_back(
+                        make_pair(i.first,
+                        PhraseInfo(lex_s2t_score,lex_t2s_score,i.second/ssum,i.second/tgt_sum[i.first])));
+                scores.push_back(lex_s2t_score+lex_t2s_score);
+                //fout<<m.first<<" ||| "<<i.first<<" ||| "<<lex_s2t_score<<" "
+                //    <<i.second/ssum<<" "<<lex_t2s_score<<" "<<i.second/tgt_sum[i.first]<<" 2.718"<<endl;
+            }
+            sort(scores.rbegin(),scores.rend());
+            double threshold=scores[scores.size()>nbest?nbest:scores.size()-1];
+            for(auto& p:phrases){
+                if(p.second.ls2t+p.second.lt2s>=threshold){
+                    fout<<m.first<<" ||| "<<p.first<<" ||| "<<p.second.ls2t<<" "
+                    <<p.second.ps2t<<" "<<p.second.lt2s<<" "<<p.second.pt2s<<" 2.718"<<endl;
+                }
+            }
+        }
+    }
+    else{
+        for(auto& m: pt){
+            double ssum=src_sum[m.first];
+            for(auto& i: m.second){
+                fout<<m.first<<" ||| "<<i.first<<" ||| 1 "<<i.second/ssum<<" 1 "<<i.second/tgt_sum[i.first]<<" 2.718"<<endl;
+            }
         }
     }
     fout.close();
 }
+
 void ExtractPhrasePairs(JKArgs& args){
     string src="",tgt="",log_prefix="",out="",in="";
     int maxlen=7;
@@ -376,6 +446,9 @@ void ExtractPhrasePairs(JKArgs& args){
     if(args.count("in"))in=args["in"];
     ExtractPhrasePairs(src,tgt,out,40,maxlen,4,cutoff,false);
 }
+
+//
+//
 int main(int ac, char** av)
 {
     JKArgs args(ac,av);
