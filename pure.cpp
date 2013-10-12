@@ -64,8 +64,8 @@ void PhraseCutoff(const string& filename,
         src_corpus.push_back(vector<string>());
         split(src_corpus.back(),line,is_any_of(" \t"));
     }
-    for(int i=0; i<src_corpus.size();i++){
-        for (int j=0;j< src_corpus[i].size(); j++){
+    for(uint64_t i=0; i<src_corpus.size();i++){
+        for (uint64_t j=0;j< src_corpus[i].size(); j++){
             ngram_map[0][src_corpus[i][j]].push_back(make_pair(i,j));
         }
     }
@@ -75,11 +75,11 @@ void PhraseCutoff(const string& filename,
     for(int len=2;len<=max_phrase_length;len++){
         cerr<<"process length "<<len<<endl;
         for(auto& item : ngram_map[len-2]){
-            if(item.second.size()>threshold){
+            if(item.second.size()>(uint64_t)threshold){
                 for(auto& pos : item.second){
                     auto& sent=src_corpus[pos.first];
                     auto& ind=pos.second;
-                    if(ind+len-1<sent.size()){
+                    if(ind+len-1<(int64_t)sent.size()){
                         ngram_map[len-1][item.first+" "+sent[ind+len-1]].push_back(pos);
                     }
                 }
@@ -92,7 +92,7 @@ void PhraseCutoff(const string& filename,
     }
     for(int i=1;i<max_phrase_length;i++){
         for(auto& item : ngram_map[i]){
-            if(item.second.size()>cutoff){
+            if(item.second.size()>(uint64_t)cutoff){
                 for(auto& pos: item.second){
                     max_lens[pos.first][pos.second]=i+1;
                 }
@@ -107,7 +107,7 @@ void PhraseCutoff(const string& filename,
     for(int i=0;i<max_phrase_length;i++){
         for(auto& item : ngram_map[i]){
             for(int t =0; t<cutoff;t++){
-                if(item.second.size()>t)
+                if(item.second.size()>(uint64_t)t)
                     count[t][i]++;
             }
         }
@@ -138,19 +138,19 @@ void GenerateFactorial(vector<double>& fac)
 {
     if(fac.size()==0)return;
     fac[0]=1;
-    for(int i=1;i<fac.size();i++){
+    for(uint64_t i=1;i<fac.size();i++){
         fac[i]=fac[i-1]*i;
     }
 }
 
 bool GenerateCombinatorial(vector<vector<double>>& com)
 {
-    int dim=static_cast<int>(com.size());
+    uint64_t dim=com.size();
     if(dim==0)return false;
     if(dim!=com[0].size())return false;
-    for(int i=1;i<com.size()-1;i++){
+    for(uint64_t i=1;i<com.size()-1;i++){
         com[i][0]=1;
-        for(int j=1;j<=i;j++){
+        for(uint64_t j=1;j<=i;j++){
             com[i][j]=com[i][j-1]*(i-j+1)/j;
             cout<<com[i][j]<<" ";
         }
@@ -161,10 +161,10 @@ bool GenerateCombinatorial(vector<vector<double>>& com)
 
 double CalculateDenominator(vector<vector<double>>& com, vector<double>& fac, int n, int m)
 {
-    int dim=min(n,m);
+    uint64_t dim=min(n,m);
     double sum=0;
     assert(dim+2<com.size()&&dim+2<fac.size());
-    for(int i=0;i<=dim;i++){
+    for(uint64_t i=0;i<=dim;i++){
         sum+=com[n][i]*com[m][i]*fac[i+1];
     }
     return sum;
@@ -172,10 +172,10 @@ double CalculateDenominator(vector<vector<double>>& com, vector<double>& fac, in
 
 double CalculateNumerator(vector<vector<double>>& com, vector<double>& fac, int n, int m)
 {
-    int dim=min(n,m);
+    uint64_t dim=min(n,m);
     double sum=0;
     assert(dim+2<com.size()&&dim+2<fac.size());
-    for(int i=0;i<=dim;i++){
+    for(uint64_t i=0;i<=dim;i++){
         sum+=com[n][i]*com[m][i]*fac[i+2];
     }
     return sum;
@@ -183,16 +183,16 @@ double CalculateNumerator(vector<vector<double>>& com, vector<double>& fac, int 
 
 bool GenerateDenominator(vector<vector<double>>& denom)
 {
-    int dim=static_cast<int>(denom.size());
+    uint64_t dim=denom.size();
     if(dim==0)return false;
     if(dim!=denom[0].size())return false;
     vector<vector<double>> com(dim+3,vector<double>(dim+3,0));
     vector<double> fac(dim+3,0);
     GenerateCombinatorial(com);
     GenerateFactorial(fac);
-    for(int i=1;i<dim;i++){
-        for(int j=1;j<dim;j++){
-            denom[i][j]=CalculateDenominator(com,fac,i,j);
+    for(uint64_t i=1;i<dim;i++){
+        for(uint64_t j=1;j<dim;j++){
+            denom[i][j]=CalculateDenominator(com,fac,(int)i,(int)j);
         }
     }
     return true;
@@ -200,15 +200,15 @@ bool GenerateDenominator(vector<vector<double>>& denom)
 
 bool GenerateNumerator(vector<vector<double>>& denom)
 {
-    int dim=static_cast<int>(denom.size());
+    uint64_t dim=(denom.size());
     if(dim==0)return false;
     if(dim!=denom[0].size())return false;
     vector<vector<double>> com(dim+3,vector<double>(dim+3,0));
     vector<double> fac(dim+3,0);
     GenerateCombinatorial(com);
     GenerateFactorial(fac);
-    for(int i=1;i<dim;i++){
-        for(int j=1;j<dim;j++){
+    for(int i=1;i<(int64_t)dim;i++){
+        for(int j=1;j<(int64_t)dim;j++){
             denom[i][j]=CalculateNumerator(com,fac,i,j);
         }
     }
@@ -255,14 +255,14 @@ bool ExtractPhrasePairs(const string& src,
 */
     ofstream os(out.c_str());
     map<string,map<string,double>> pt;
-    for(int sid=0;sid<src_corpus.size();sid++){
+    for(uint64_t sid=0;sid<src_corpus.size();sid++){
         vector<string>& ssent=src_corpus[sid];
         vector<string>& tsent=tgt_corpus[sid];
         int n=static_cast<int>(ssent.size());
         int m=static_cast<int>(tsent.size());
         if(n>max_sentence_length||m>max_sentence_length)continue;
-        for(int i=0;i<ssent.size();i++){
-            for(int j=0;j<tsent.size();j++){
+        for(uint64_t i=0;i<ssent.size();i++){
+            for(uint64_t j=0;j<tsent.size();j++){
                 string sphrase="";
                 for(int k=0;k<src_max_lens[sid][i];k++){
                     if(sphrase!="")sphrase+=" ";
@@ -384,7 +384,7 @@ void Score(JKArgs& args){
                 //    <<i.second/ssum<<" "<<lex_t2s_score<<" "<<i.second/tgt_sum[i.first]<<" 2.718"<<endl;
             }
             sort(scores.rbegin(),scores.rend());
-            double threshold=scores[scores.size()>nbest?nbest:scores.size()-1];
+            double threshold=scores[scores.size()>(uint64_t)nbest?nbest:scores.size()-1];
             for(auto& p:phrases){
                 if(p.second.ls2t+p.second.lt2s>=threshold){
                     fout<<m.first<<" ||| "<<p.first<<" ||| "<<p.second.ls2t<<" "
