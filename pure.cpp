@@ -305,12 +305,12 @@ proc -extract -src=source_file -tgt=target_file -o=output_file
 typedef map<string,map<string,double>> LexDic;
 
 void LoadLex(ifstream& is, LexDic& lex){
-    for(string line; is.good();){
+    for(;!is.eof();){
         string src="",tgt="";
         double score;
         is>>src>>tgt>>score;
-        if(is.good()&&src!="")
-            lex[src][tgt]=score;
+        if(src=="")break;
+        lex[src][tgt]=score;
     }
 }
 
@@ -340,9 +340,8 @@ void Score(JKArgs& args){
     LexDic pt,lex_s2t,lex_t2s;
     
     if(args.count("lex_s2t"))flex_s2t.open(args["lex_s2t"]);
-    if(args.count("lex_t2s"))flex_s2t.open(args["lex_t2s"]);
+    if(args.count("lex_t2s"))flex_t2s.open(args["lex_t2s"]);
     if(args.count("lex_s2t")||args.count("lex_t2s"))uselex=true;
-    
     
     ifstream fin(in);
     ofstream fout(out);
