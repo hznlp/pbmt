@@ -328,7 +328,7 @@ double ScoreLex(vector<string>& src, vector<string>& tgt, LexDic& lex_s2t){
 struct PhraseInfo {
     double ps2t,pt2s,ls2t,lt2s;
     PhraseInfo(){ps2t=pt2s=ls2t=lt2s=1;};
-    PhraseInfo(double x,double y, double i, double j){ps2t=x;pt2s=y;ls2t=i;lt2s=j;}
+    PhraseInfo(double ls,double ps, double lt, double pt){ps2t=ps;pt2s=pt;ls2t=ls;lt2s=lt;}
 };
 typedef map<string,map<string,PhraseInfo>> PhraseTable;
 
@@ -375,7 +375,7 @@ void Score(JKArgs& args){
                 double lex_t2s_score=ScoreLex(tgt, src, lex_t2s);
                 phrases.push_back(
                         make_pair(i.first,
-                        PhraseInfo(lex_s2t_score,lex_t2s_score,i.second.ps2t,i.second.pt2s)));
+                        PhraseInfo(lex_s2t_score,i.second.ps2t,lex_t2s_score,i.second.pt2s)));
                 scores.push_back(lex_s2t_score+lex_t2s_score);
             }
             pt[m.first].clear();
@@ -448,7 +448,7 @@ void ExtractPhrasePairs(JKArgs& args){
     if(args.count("o"))out=args["o"];
     if(args.count("maxlen"))maxlen=stoi(args["maxlen"]);
     if(args.count("cutoff"))cutoff=stoi(args["cutoff"]);
-    ExtractPhrasePairs(src,tgt,out,40,maxlen,4,cutoff,false);
+    ExtractPhrasePairs(src,tgt,out,40,maxlen,4,cutoff,true);
 }
 
 //
