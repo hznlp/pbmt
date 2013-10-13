@@ -354,7 +354,7 @@ void Score(JKArgs& args){
         if(line=="")continue;
         vector<string> content;
         split_regex(content,line,regex(" => | \\|\\|\\| "));
-        if(content.size()!=3)continue;
+        if(content.size()<3)continue;
         pt[content[0]][content[1]]=PhraseInfo((double)stod(content[2]),(double)stod(content[2]),(double)1.0,(double)1.0);
         
     }
