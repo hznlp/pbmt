@@ -276,7 +276,7 @@ bool ExtractPhrasePairs(const string& src,
                         if(n-k-2>0&&m-l-2>0&&n>1&&m>1)
                             prob=numer[n-k-2][m-l-2]/denom[n-1][m-1];
                         if(plain)
-                            os<<sphrase<<" => "<<tphrase<<" ||| "<<prob<<endl;
+                            os<<sphrase<<" ||| "<<tphrase<<" ||| "<<prob<<endl;
                         else
                             pt[sphrase][tphrase]+=prob;
                     }
@@ -295,7 +295,7 @@ bool ExtractPhrasePairs(const string& src,
 void usage(){
     cerr<<
 R"(
-proc -extract -src=source_file -tgt=target_file -o=output_file
+proc -extract -src=source_file -tgt=target_file -o=output_file -maxlen=int -cutoff=int
      -score -i=input -o=output [-nbest=int] [-lengthsort] [-lex_s2t=file] [-lex_t2s=file]
     
 )";
@@ -445,8 +445,9 @@ void ExtractPhrasePairs(JKArgs& args){
     if(args.count("src"))src=args["src"];
     if(args.count("tgt"))tgt=args["tgt"];
     if(args.count("log"))log_prefix=args["log"];
-    if(args.count("out"))out=args["out"];
-    if(args.count("in"))in=args["in"];
+    if(args.count("o"))out=args["o"];
+    if(args.count("maxlen"))maxlen=stoi(args["maxlen"]);
+    if(args.count("cutoff"))cutoff=stoi(args["cutoff"]);
     ExtractPhrasePairs(src,tgt,out,40,maxlen,4,cutoff,false);
 }
 
