@@ -406,10 +406,13 @@ void Score(JKArgs& args){
             double fraccount=(double)stod(content[2]);
             pt[content[0]][content[1]]=PhraseInfo((double)1.0,fraccount,(double)1.0,fraccount);
         }
-        else{
+        else if(content.size()==4){
             double count=(double)stod(content[3]);
             double fraccount=(double)stod(content[2]);
             pt[content[0]][content[1]]=PhraseInfo(count,fraccount,(double)1.0,fraccount);
+        }
+        else if(content.size()==6){
+            pt[content[0]][content[1]]=PhraseInfo(stod(content[2]),stod(content[3]),stod(content[4]),stod(content[5]));
         }
     }
     map<string,double> src_sum,tgt_sum;
@@ -446,21 +449,27 @@ void Score(JKArgs& args){
         }
     }
     
-    for(auto& m: pt){
-        for(auto& i: m.second){
-            src_sum[m.first]+=i.second.ps2t;
-            tgt_sum[i.first]+=i.second.ps2t;
+    if(args.count("zeroP")){
+        for(auto& m: pt)
+            for(auto& p: m.second)
+                fout<<m.first<<" ||| "<<p.first<<" ||| "<<p.second.ls2t<<" 1 "<<p.second.lt2s<<" 1 2.718"<<endl;
+    }
+    else{
+        for(auto& m: pt){
+            for(auto& i: m.second){
+                src_sum[m.first]+=i.second.ps2t;
+                tgt_sum[i.first]+=i.second.ps2t;
+            }
+        }
+        for(auto& m: pt){
+            double ssum=src_sum[m.first];
+            for(auto& p: m.second){
+                auto tsum=tgt_sum[p.first];
+                fout<<m.first<<" ||| "<<p.first<<" ||| "<<p.second.ls2t<<" "
+                <<p.second.ps2t/ssum<<" "<<p.second.lt2s<<" "<<p.second.pt2s/tsum<<" 2.718"<<endl;
+            }
         }
     }
-    for(auto& m: pt){
-        double ssum=src_sum[m.first];
-        for(auto& p: m.second){
-            auto tsum=tgt_sum[p.first];
-            fout<<m.first<<" ||| "<<p.first<<" ||| "<<p.second.ls2t<<" "
-            <<p.second.ps2t/ssum<<" "<<p.second.lt2s<<" "<<p.second.pt2s/tsum<<" 2.718"<<endl;
-        }
-    }
-    
     fout.close();
 }
 
@@ -519,7 +528,7 @@ void usage(){
     R"(
     proc -extract -src=source_file -tgt=target_file -o=output_file -maxlen=int -cutoff=int -inmemory=true
     -score -i=input -o=output [-nbest=int] [-lengthsort] [-lex_s2t=file] [-lex_t2s=file] [-lexcond=false]
-            [-scoring=Frac|Count|CountLex]
+            [-scoring=Frac|Count|CountLex] [-zeroP]
     -readlog -i=file
     
     )";
