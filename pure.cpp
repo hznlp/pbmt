@@ -7,6 +7,7 @@
 #include <cassert>
 #include <cmath>
 #include <algorithm>
+#include <array>
 #include <map>
 #include <boost/range/irange.hpp>
 
@@ -39,7 +40,9 @@ using boost::irange;
 using boost::split_regex;
 using namespace boost;
 using namespace std;
+using std::array;
 
+void usage();
 void PhraseCutoff(const string& filename, 
         const string& log_prefix, 
         vector<vector<string>>* p_src_corpus, 
@@ -254,7 +257,7 @@ bool ExtractPhrasePairs(const string& src,
     }
 */
     ofstream os(out.c_str());
-    map<string,map<string,double>> pt;
+    map<string,map<string,pair<double,double>>> pt;
     for(uint64_t sid=0;sid<src_corpus.size();sid++){
         vector<string>& ssent=src_corpus[sid];
         vector<string>& tsent=tgt_corpus[sid];
@@ -276,9 +279,12 @@ bool ExtractPhrasePairs(const string& src,
                         if(n-k-2>0&&m-l-2>0&&n>1&&m>1)
                             prob=numer[n-k-2][m-l-2]/denom[n-1][m-1];
                         if(!inmemory)
-                            os<<sphrase<<" ||| "<<tphrase<<" ||| "<<prob<<endl;
-                        else
-                            pt[sphrase][tphrase]+=prob;
+                            os<<sphrase<<" ||| "<<tphrase<<" ||| "<<prob<<" 1"<<endl;
+                        else{
+                            auto& item=pt[sphrase][tphrase];
+                            item.first+=prob;
+                            item.second+=1;
+                        }
                     }
                 }
             }
@@ -287,129 +293,11 @@ bool ExtractPhrasePairs(const string& src,
     if(inmemory){
         for(auto& m: pt)
             for(auto& i: m.second)
-                os<<m.first<<" ||| "<<i.first<<" ||| "<<i.second<<endl;
+                os<<m.first<<" ||| "<<i.first<<" ||| "<<i.second.first<<" "<<i.second.second<<endl;
     }
     os.close();
     return 1;
 }
-void usage(){
-    cerr<<
-R"(
-proc -extract -src=source_file -tgt=target_file -o=output_file -maxlen=int -cutoff=int -inmemory=true
-     -score -i=input -o=output [-nbest=int] [-lengthsort] [-lex_s2t=file] [-lex_t2s=file] [-lexcond=false]
-    
-)";
-    exit(-1);
-}
-
-typedef map<string,map<string,double>> LexDic;
-
-void LoadLex(ifstream& is, LexDic& lex){
-    for(;!is.eof();){
-        string src="",tgt="";
-        double score;
-        is>>src>>tgt>>score;
-        if(src=="")break;
-        lex[src][tgt]=score;
-    }
-}
-
-double ScoreLex(vector<string>& src, vector<string>& tgt, LexDic& lex_s2t){
-    double result=1;
-    for(auto& t: tgt){
-        double s2t=lex_s2t["<NULL>"][t];
-        for(auto& s: src)
-            s2t+=lex_s2t[s][t];
-        result*=s2t;
-    }
-    return result;
-}
-
-struct PhraseInfo {
-    double ps2t,pt2s,ls2t,lt2s;
-    PhraseInfo(){ps2t=pt2s=ls2t=lt2s=1;};
-    PhraseInfo(double ls,double ps, double lt, double pt){ps2t=ps;pt2s=pt;ls2t=ls;lt2s=lt;}
-};
-typedef map<string,map<string,PhraseInfo>> PhraseTable;
-
-void Score(JKArgs& args){
-    if(!args.count("i")||!args.count("o"))usage();
-    const string& in=args["i"];
-    const string& out=args["o"];
-    int nbest=args.count("nbest")?stoi(args["nbest"]):100;
-    bool uselex=false;
-    ifstream flex_s2t,flex_t2s;
-    LexDic lex_s2t,lex_t2s;
-    PhraseTable pt;
-    bool lexcond=false;
-    
-    if(args.count("lex_s2t"))flex_s2t.open(args["lex_s2t"]);
-    if(args.count("lex_t2s"))flex_t2s.open(args["lex_t2s"]);
-    if(args.count("lex_s2t")||args.count("lex_t2s"))uselex=true;
-    if(args["lexcond"]=="true")lexcond=true;
-        
-    ifstream fin(in);
-    ofstream fout(out);
-    string prev_src="",prev_tgt="";
-    for(string line; getline(fin,line);){
-        trim(line);
-        if(line=="")continue;
-        vector<string> content;
-        split_regex(content,line,regex(" => | \\|\\|\\| "));
-        if(content.size()<3)continue;
-        pt[content[0]][content[1]]=PhraseInfo((double)stod(content[2]),(double)stod(content[2]),(double)1.0,(double)1.0);
-        
-    }
-    map<string,double> src_sum,tgt_sum;
-    
-    if(uselex){
-        LoadLex(flex_s2t, lex_s2t);
-        LoadLex(flex_t2s, lex_t2s);
-        for(auto& m: pt){
-            vector<string> src;
-            split(src,m.first,is_any_of(" \t"));
-            vector<pair<string,PhraseInfo>> phrases;
-            vector<double> scores;
-            for(auto& i: m.second){
-                vector<string> tgt;
-                split(tgt,i.first,is_any_of(" \t"));
-                double lex_s2t_score=ScoreLex(src, tgt, lex_s2t);
-                double lex_t2s_score=ScoreLex(tgt, src, lex_t2s);
-                if(lexcond){i.second.ps2t=i.second.pt2s=(lex_s2t_score+lex_t2s_score)/2;}
-                phrases.push_back(
-                        make_pair(i.first,
-                        PhraseInfo(lex_s2t_score,i.second.ps2t,lex_t2s_score,i.second.pt2s)));
-                scores.push_back(lex_s2t_score+lex_t2s_score);
-            }
-            pt[m.first].clear();
-            sort(scores.rbegin(),scores.rend());
-            double threshold=scores[scores.size()>(uint64_t)nbest?nbest:scores.size()-1];
-            for(auto& p:phrases){
-                if(p.second.ls2t+p.second.lt2s>=threshold){
-                    pt[m.first][p.first]=p.second;
-                }
-            }
-        }
-    }
-    
-    for(auto& m: pt){
-        for(auto& i: m.second){
-            src_sum[m.first]+=i.second.ps2t;
-            tgt_sum[i.first]+=i.second.ps2t;
-        }
-    }
-    for(auto& m: pt){
-        double ssum=src_sum[m.first];
-        for(auto& p: m.second){
-            auto tsum=tgt_sum[p.first];
-            fout<<m.first<<" ||| "<<p.first<<" ||| "<<p.second.ls2t<<" "
-            <<p.second.ps2t/ssum<<" "<<p.second.lt2s<<" "<<p.second.pt2s/tsum<<" 2.718"<<endl;
-        }
-    }
-    
-    fout.close();
-}
-
 void ExtractPhrasePairs(JKArgs& args){
     string src="",tgt="",log_prefix="",out="",in="";
     int maxlen=7;
@@ -456,6 +344,187 @@ void ExtractPhrasePairs(JKArgs& args){
     ExtractPhrasePairs(src,tgt,out,40,maxlen,4,cutoff,inmemory);
 }
 
+typedef map<string,map<string,double>> LexDic;
+
+void LoadLex(ifstream& is, LexDic& lex){
+    for(;!is.eof();){
+        string src="",tgt="";
+        double score;
+        is>>src>>tgt>>score;
+        if(src=="")break;
+        lex[src][tgt]=score;
+    }
+}
+
+double ScoreLex(vector<string>& src, vector<string>& tgt, LexDic& lex_s2t){
+    double result=1;
+    for(auto& t: tgt){
+        double s2t=lex_s2t["<NULL>"][t];
+        for(auto& s: src)
+            s2t+=lex_s2t[s][t];
+        result*=s2t;
+    }
+    return result;
+}
+
+struct PhraseInfo {
+    double ps2t,pt2s,ls2t,lt2s;
+    PhraseInfo(){ps2t=pt2s=ls2t=lt2s=1;};
+    PhraseInfo(double ls,double ps, double lt, double pt){ps2t=ps;pt2s=pt;ls2t=ls;lt2s=lt;}
+};
+typedef map<string,map<string,PhraseInfo>> PhraseTable;
+enum Scoring { Frac,Count,CountLex};
+
+void Score(JKArgs& args){
+    if(!args.count("i")||!args.count("o"))usage();
+    const string& in=args["i"];
+    const string& out=args["o"];
+    int nbest=args.count("nbest")?stoi(args["nbest"]):100;
+    bool uselex=false;
+    ifstream flex_s2t,flex_t2s;
+    LexDic lex_s2t,lex_t2s;
+    PhraseTable pt;
+    
+    if(args.count("lex_s2t"))flex_s2t.open(args["lex_s2t"]);
+    if(args.count("lex_t2s"))flex_t2s.open(args["lex_t2s"]);
+    if(args.count("lex_s2t")||args.count("lex_t2s"))uselex=true;
+    Scoring scoring=Frac;
+    if(args["scoring"]=="CountLex")scoring=CountLex;
+    else if(args["scoring"]=="Count")scoring=Count;
+    
+        
+    ifstream fin(in);
+    ofstream fout(out);
+    string prev_src="",prev_tgt="";
+    for(string line; getline(fin,line);){
+        trim(line);
+        if(line=="")continue;
+        vector<string> content;
+        split_regex(content,line,regex(" => | \\|\\|\\| "));
+        if(content.size()<3)continue;
+        if(content.size()==3){
+            double fraccount=(double)stod(content[2]);
+            pt[content[0]][content[1]]=PhraseInfo((double)1.0,fraccount,(double)1.0,fraccount);
+        }
+        else{
+            double count=(double)stod(content[3]);
+            double fraccount=(double)stod(content[2]);
+            pt[content[0]][content[1]]=PhraseInfo(count,fraccount,(double)1.0,fraccount);
+        }
+    }
+    map<string,double> src_sum,tgt_sum;
+    
+    if(uselex){
+        LoadLex(flex_s2t, lex_s2t);
+        LoadLex(flex_t2s, lex_t2s);
+        for(auto& m: pt){
+            vector<string> src;
+            split(src,m.first,is_any_of(" \t"));
+            vector<pair<string,PhraseInfo>> phrases;
+            vector<double> scores;
+            for(auto& i: m.second){
+                vector<string> tgt;
+                split(tgt,i.first,is_any_of(" \t"));
+                double lex_s2t_score=ScoreLex(src, tgt, lex_s2t);
+                double lex_t2s_score=ScoreLex(tgt, src, lex_t2s);
+                if(scoring==CountLex){i.second.ps2t=i.second.pt2s=i.second.ls2t*(lex_s2t_score+lex_t2s_score)/2;}
+                else if(scoring==Count){i.second.ps2t=i.second.pt2s=i.second.ls2t;}
+                else if(scoring==Frac){i.second.pt2s=i.second.ps2t;}
+                phrases.push_back(
+                        make_pair(i.first,
+                        PhraseInfo(lex_s2t_score,i.second.ps2t,lex_t2s_score,i.second.pt2s)));
+                scores.push_back(lex_s2t_score+lex_t2s_score);
+            }
+            pt[m.first].clear();
+            sort(scores.rbegin(),scores.rend());
+            double threshold=scores[scores.size()>(uint64_t)nbest?nbest:scores.size()-1];
+            for(auto& p:phrases){
+                if(p.second.ls2t+p.second.lt2s>=threshold){
+                    pt[m.first][p.first]=p.second;
+                }
+            }
+        }
+    }
+    
+    for(auto& m: pt){
+        for(auto& i: m.second){
+            src_sum[m.first]+=i.second.ps2t;
+            tgt_sum[i.first]+=i.second.ps2t;
+        }
+    }
+    for(auto& m: pt){
+        double ssum=src_sum[m.first];
+        for(auto& p: m.second){
+            auto tsum=tgt_sum[p.first];
+            fout<<m.first<<" ||| "<<p.first<<" ||| "<<p.second.ls2t<<" "
+            <<p.second.ps2t/ssum<<" "<<p.second.lt2s<<" "<<p.second.pt2s/tsum<<" 2.718"<<endl;
+        }
+    }
+    
+    fout.close();
+}
+
+void Readlog(JKArgs& args){
+    if(!args.count("i"))usage();
+    ifstream is(args["i"]);
+    
+    vector<vector<double>> scores(8,vector<double>(6,0));
+    for(string line; getline(is,line);){
+        vector<string> words;
+        split_regex(words,line,regex(" |-pt\\.|\\.lex|/"));
+        int maxlen=0;
+        int cutoff=0;
+        for(size_t i=0;i<words.size();i++){
+            if(words[i]=="evaluation"){
+                maxlen=words[i+1][1]-'0';
+                cutoff=words[i+1][3]-'0';
+                //cerr<<maxlen<<","<<cutoff<<endl;
+            }
+            else if(words[i]=="BLEUr4n4[%]")
+                scores[maxlen][cutoff]=stod(words[i+1]);
+            
+        }
+    }
+    cout<<R"(
+\begin{table}[H]
+\centering
+\begin{tabular}{ c c | c | c | c | c|c }
+& \multicolumn{5}{c}{\bf{ count cutoff}}  \\
+&  & 1 &	2 &	3 &	4 &	5\\
+\hline
+\multirow{7}{*}{\bf{max length}}
+)";
+     for(int i=1;i<8;i++){
+        cout<<"& "<<i<<"";
+        for(int j=1;j<6;j++){
+            cout<<" &\t";
+            if(scores[i][j]==0)
+                cout<<"\\bf{N.A.}";
+            else cout<<scores[i][j];
+        }
+         cout<<"\\\\"<<endl;
+         if(i<7)cout<<R"(\cline{2-7})"<<endl;
+    }
+    cout<<R"(\hline
+\end{tabular}
+\caption{bleu of different maxlen and cutoff}
+\end{table}
+    
+)";
+    
+}
+
+void usage(){
+    cerr<<
+    R"(
+    proc -extract -src=source_file -tgt=target_file -o=output_file -maxlen=int -cutoff=int -inmemory=true
+    -score -i=input -o=output [-nbest=int] [-lengthsort] [-lex_s2t=file] [-lex_t2s=file] [-lexcond=false]
+            [-scoring=Frac|Count|CountLex]
+    -readlog -i=file
+    
+    )";
+    exit(-1);
+}
 //
 //
 int main(int ac, char** av)
@@ -465,5 +534,7 @@ int main(int ac, char** av)
         ExtractPhrasePairs(args);
     else if(args.count("score"))
         Score(args);
+    else if(args.count("readlog"))
+        Readlog(args);
     else usage();
 }
