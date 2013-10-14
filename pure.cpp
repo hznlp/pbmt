@@ -221,7 +221,7 @@ bool ExtractPhrasePairs(const string& src,
         int max_phrase_length,
         double max_length_ratio,
         int min_phrase_count,
-        bool plain)
+        bool inmemory)
 {    
     if(src==""||tgt==""||out=="")return false; 
     vector<vector<string>> src_corpus,tgt_corpus;
@@ -275,7 +275,7 @@ bool ExtractPhrasePairs(const string& src,
                         double prob=1E-5;
                         if(n-k-2>0&&m-l-2>0&&n>1&&m>1)
                             prob=numer[n-k-2][m-l-2]/denom[n-1][m-1];
-                        if(plain)
+                        if(!inmemory)
                             os<<sphrase<<" ||| "<<tphrase<<" ||| "<<prob<<endl;
                         else
                             pt[sphrase][tphrase]+=prob;
@@ -284,7 +284,7 @@ bool ExtractPhrasePairs(const string& src,
             }
         }
     }
-    if(!plain){
+    if(inmemory){
         for(auto& m: pt)
             for(auto& i: m.second)
                 os<<m.first<<" ||| "<<i.first<<" ||| "<<i.second<<endl;
@@ -295,7 +295,7 @@ bool ExtractPhrasePairs(const string& src,
 void usage(){
     cerr<<
 R"(
-proc -extract -src=source_file -tgt=target_file -o=output_file -maxlen=int -cutoff=int
+proc -extract -src=source_file -tgt=target_file -o=output_file -maxlen=int -cutoff=int -inmemory=true
      -score -i=input -o=output [-nbest=int] [-lengthsort] [-lex_s2t=file] [-lex_t2s=file]
     
 )";
@@ -442,13 +442,15 @@ void ExtractPhrasePairs(JKArgs& args){
      //maxlen=vm["mlen"].as<int>();
      }
      */
+    bool inmemory=true;
     if(args.count("src"))src=args["src"];
     if(args.count("tgt"))tgt=args["tgt"];
     if(args.count("log"))log_prefix=args["log"];
     if(args.count("o"))out=args["o"];
     if(args.count("maxlen"))maxlen=stoi(args["maxlen"]);
     if(args.count("cutoff"))cutoff=stoi(args["cutoff"]);
-    ExtractPhrasePairs(src,tgt,out,40,maxlen,4,cutoff,true);
+    if(args["inmemory"]=="false")inmemory=false;
+    ExtractPhrasePairs(src,tgt,out,40,maxlen,4,cutoff,inmemory);
 }
 
 //
