@@ -296,7 +296,7 @@ void usage(){
     cerr<<
 R"(
 proc -extract -src=source_file -tgt=target_file -o=output_file -maxlen=int -cutoff=int
-     -score -i=input -o=output [-nbest=int] [-lengthsort] [-lex_s2t=file] [-lex_t2s=file]
+     -score -i=input -o=output [-nbest=int] [-lengthsort] [-lex_s2t=file] [-lex_t2s=file] [-lexcond=false]
     
 )";
     exit(-1);
@@ -341,11 +341,13 @@ void Score(JKArgs& args){
     ifstream flex_s2t,flex_t2s;
     LexDic lex_s2t,lex_t2s;
     PhraseTable pt;
+    bool lexcond=false;
     
     if(args.count("lex_s2t"))flex_s2t.open(args["lex_s2t"]);
     if(args.count("lex_t2s"))flex_t2s.open(args["lex_t2s"]);
     if(args.count("lex_s2t")||args.count("lex_t2s"))uselex=true;
-    
+    if(args["lexcond"]=="true")lexcond=true;
+        
     ifstream fin(in);
     ofstream fout(out);
     string prev_src="",prev_tgt="";
@@ -373,6 +375,7 @@ void Score(JKArgs& args){
                 split(tgt,i.first,is_any_of(" \t"));
                 double lex_s2t_score=ScoreLex(src, tgt, lex_s2t);
                 double lex_t2s_score=ScoreLex(tgt, src, lex_t2s);
+                if(lexcond){i.second.ps2t=i.second.pt2s=(lex_s2t_score+lex_t2s_score)/2;}
                 phrases.push_back(
                         make_pair(i.first,
                         PhraseInfo(lex_s2t_score,i.second.ps2t,lex_t2s_score,i.second.pt2s)));
@@ -448,6 +451,7 @@ void ExtractPhrasePairs(JKArgs& args){
     if(args.count("o"))out=args["o"];
     if(args.count("maxlen"))maxlen=stoi(args["maxlen"]);
     if(args.count("cutoff"))cutoff=stoi(args["cutoff"]);
+   
     ExtractPhrasePairs(src,tgt,out,40,maxlen,4,cutoff,true);
 }
 
