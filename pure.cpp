@@ -426,13 +426,7 @@ bool Score(JKArgs& args){
         }
     }
     map<string,double> src_sum,tgt_sum;
-    if(args.count("zeroP")){
-        for(auto& m: pt)
-            for(auto& p: m.second)
-                fout<<m.first<<" ||| "<<p.first<<" ||| "<<p.second.ls2t<<" 1 "<<p.second.lt2s<<" 1 2.718"<<endl;
-        return true;
-    }
-    else if(uselex){
+    if(uselex){
         if(LoadLex(flex_s2t, lex_s2t)==false)return false;
         if(LoadLex(flex_t2s, lex_t2s)==false)return false;
         
@@ -464,22 +458,28 @@ bool Score(JKArgs& args){
             }
         }
     }
-    
-    for(auto& m: pt){
-        for(auto& i: m.second){
-            src_sum[m.first]+=i.second.ps2t;
-            tgt_sum[i.first]+=i.second.ps2t;
+    if(args.count("zeroP")){
+        for(auto& m: pt)
+            for(auto& p: m.second)
+                fout<<m.first<<" ||| "<<p.first<<" ||| "<<p.second.ls2t<<" 1 "<<p.second.lt2s<<" 1 2.718"<<endl;
+        return true;
+    }
+    else{
+        for(auto& m: pt){
+            for(auto& i: m.second){
+                src_sum[m.first]+=i.second.ps2t;
+                tgt_sum[i.first]+=i.second.ps2t;
+            }
+        }
+        for(auto& m: pt){
+            double ssum=src_sum[m.first];
+            for(auto& p: m.second){
+                auto tsum=tgt_sum[p.first];
+                fout<<m.first<<" ||| "<<p.first<<" ||| "<<p.second.ls2t<<" "
+                <<p.second.ps2t/ssum<<" "<<p.second.lt2s<<" "<<p.second.pt2s/tsum<<" 2.718"<<endl;
+            }
         }
     }
-    for(auto& m: pt){
-        double ssum=src_sum[m.first];
-        for(auto& p: m.second){
-            auto tsum=tgt_sum[p.first];
-            fout<<m.first<<" ||| "<<p.first<<" ||| "<<p.second.ls2t<<" "
-            <<p.second.ps2t/ssum<<" "<<p.second.lt2s<<" "<<p.second.pt2s/tsum<<" 2.718"<<endl;
-        }
-    }
-
     fout.close();
     return true;
 }
