@@ -346,22 +346,27 @@ void ExtractPhrasePairs(JKArgs& args){
 
 typedef map<string,map<string,double>> LexDic;
 
-void LoadLex(ifstream& is, LexDic& lex){
+bool LoadLex(ifstream& is, LexDic& lex){
     for(;!is.eof();){
         string src="",tgt="";
         double score;
         is>>src>>tgt>>score;
         if(src=="")break;
         lex[src][tgt]=score;
+        //cout<<"load: "<<src<<" => "<<tgt<<" "<<score<<endl;
     }
+    if(lex.size()==0)return false;
+    else return true;
 }
 
 double ScoreLex(vector<string>& src, vector<string>& tgt, LexDic& lex_s2t){
     double result=1;
     for(auto& t: tgt){
         double s2t=lex_s2t["<NULL>"][t];
-        for(auto& s: src)
+        for(auto& s: src){
             s2t+=lex_s2t[s][t];
+            
+        }
         result*=s2t;
     }
     return result;
@@ -375,7 +380,7 @@ struct PhraseInfo {
 typedef map<string,map<string,PhraseInfo>> PhraseTable;
 enum Scoring { Frac,Count,CountLex};
 
-void Score(JKArgs& args){
+bool Score(JKArgs& args){
     if(!args.count("i")||!args.count("o"))usage();
     const string& in=args["i"];
     const string& out=args["o"];
@@ -402,24 +407,35 @@ void Score(JKArgs& args){
         vector<string> content;
         split_regex(content,line,regex(" => | \\|\\|\\| "));
         if(content.size()<3)continue;
-        if(content.size()==3){
-            double fraccount=(double)stod(content[2]);
+        vector<string> features;
+        split_regex(features,content[2],regex(" "));
+        /*for(auto& f : features)
+            cout<<f<<" ";
+        cout<<endl;*/
+        if(features.size()==1){
+            double fraccount=(double)stod(features[0]);
             pt[content[0]][content[1]]=PhraseInfo((double)1.0,fraccount,(double)1.0,fraccount);
         }
-        else if(content.size()==4){
-            double count=(double)stod(content[3]);
-            double fraccount=(double)stod(content[2]);
+        else if(features.size()==2){
+            double count=(double)stod(features[1]);
+            double fraccount=(double)stod(features[0]);
             pt[content[0]][content[1]]=PhraseInfo(count,fraccount,(double)1.0,fraccount);
         }
-        else if(content.size()==6){
-            pt[content[0]][content[1]]=PhraseInfo(stod(content[2]),stod(content[3]),stod(content[4]),stod(content[5]));
+        else if(features.size()>=4){
+            pt[content[0]][content[1]]=PhraseInfo(stod(features[0]),stod(features[1]),stod(features[2]),stod(features[3]));
         }
     }
     map<string,double> src_sum,tgt_sum;
-    
-    if(uselex){
-        LoadLex(flex_s2t, lex_s2t);
-        LoadLex(flex_t2s, lex_t2s);
+    if(args.count("zeroP")){
+        for(auto& m: pt)
+            for(auto& p: m.second)
+                fout<<m.first<<" ||| "<<p.first<<" ||| "<<p.second.ls2t<<" 1 "<<p.second.lt2s<<" 1 2.718"<<endl;
+        return true;
+    }
+    else if(uselex){
+        if(LoadLex(flex_s2t, lex_s2t)==false)return false;
+        if(LoadLex(flex_t2s, lex_t2s)==false)return false;
+        
         for(auto& m: pt){
             vector<string> src;
             split(src,m.first,is_any_of(" \t"));
@@ -430,7 +446,7 @@ void Score(JKArgs& args){
                 split(tgt,i.first,is_any_of(" \t"));
                 double lex_s2t_score=ScoreLex(src, tgt, lex_s2t);
                 double lex_t2s_score=ScoreLex(tgt, src, lex_t2s);
-                if(scoring==CountLex){i.second.ps2t=i.second.pt2s=i.second.ls2t*(lex_s2t_score+lex_t2s_score)/2;}
+                if(scoring==CountLex){i.second.ps2t=i.second.pt2s=i.second.ls2t*(lex_s2t_score+lex_t2s_score)/(double)2.0;}
                 else if(scoring==Count){i.second.ps2t=i.second.pt2s=i.second.ls2t;}
                 else if(scoring==Frac){i.second.pt2s=i.second.ps2t;}
                 phrases.push_back(
@@ -449,28 +465,23 @@ void Score(JKArgs& args){
         }
     }
     
-    if(args.count("zeroP")){
-        for(auto& m: pt)
-            for(auto& p: m.second)
-                fout<<m.first<<" ||| "<<p.first<<" ||| "<<p.second.ls2t<<" 1 "<<p.second.lt2s<<" 1 2.718"<<endl;
-    }
-    else{
-        for(auto& m: pt){
-            for(auto& i: m.second){
-                src_sum[m.first]+=i.second.ps2t;
-                tgt_sum[i.first]+=i.second.ps2t;
-            }
-        }
-        for(auto& m: pt){
-            double ssum=src_sum[m.first];
-            for(auto& p: m.second){
-                auto tsum=tgt_sum[p.first];
-                fout<<m.first<<" ||| "<<p.first<<" ||| "<<p.second.ls2t<<" "
-                <<p.second.ps2t/ssum<<" "<<p.second.lt2s<<" "<<p.second.pt2s/tsum<<" 2.718"<<endl;
-            }
+    for(auto& m: pt){
+        for(auto& i: m.second){
+            src_sum[m.first]+=i.second.ps2t;
+            tgt_sum[i.first]+=i.second.ps2t;
         }
     }
+    for(auto& m: pt){
+        double ssum=src_sum[m.first];
+        for(auto& p: m.second){
+            auto tsum=tgt_sum[p.first];
+            fout<<m.first<<" ||| "<<p.first<<" ||| "<<p.second.ls2t<<" "
+            <<p.second.ps2t/ssum<<" "<<p.second.lt2s<<" "<<p.second.pt2s/tsum<<" 2.718"<<endl;
+        }
+    }
+
     fout.close();
+    return true;
 }
 
 void Readlog(JKArgs& args){
