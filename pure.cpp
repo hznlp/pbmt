@@ -378,7 +378,7 @@ struct PhraseInfo {
     PhraseInfo(double ls,double ps, double lt, double pt){ps2t=ps;pt2s=pt;ls2t=ls;lt2s=lt;}
 };
 typedef map<string,map<string,PhraseInfo>> PhraseTable;
-enum Scoring { Frac,Count,CountLex,OnlyLex,OnlyCount};
+enum Scoring { Frac,Count,CountLex,OnlyLex,OnlyFrac};
 
 bool Score(JKArgs& args){
     if(!args.count("i")||!args.count("o"))usage();
@@ -397,7 +397,7 @@ bool Score(JKArgs& args){
     if(args["scoring"]=="CountLex")scoring=CountLex;
     else if(args["scoring"]=="Count")scoring=Count;
     else if(args["scoring"]=="OnlyLex")scoring=OnlyLex;
-    else if(args["scoring"]=="OnlyCount")scoring=OnlyCount;
+    else if(args["scoring"]=="OnlyFrac")scoring=OnlyFrac;
     
         
     ifstream fin(in);
@@ -444,7 +444,7 @@ bool Score(JKArgs& args){
                 double lex_t2s_score=ScoreLex(tgt, src, lex_t2s);
                 if(scoring==CountLex){i.second.ps2t=i.second.pt2s=i.second.ls2t*(lex_s2t_score+lex_t2s_score)/(double)2.0;}
                 else if(scoring==Count){i.second.ps2t=i.second.pt2s=i.second.ls2t;}
-                else if(scoring==Frac){i.second.pt2s=i.second.ps2t;}
+                else i.second.pt2s=i.second.ps2t;
                 phrases.push_back(
                         make_pair(i.first,
                         PhraseInfo(lex_s2t_score,i.second.ps2t,lex_t2s_score,i.second.pt2s)));
@@ -477,7 +477,7 @@ bool Score(JKArgs& args){
             double ssum=src_sum[m.first];
             for(auto& p: m.second){
                 auto tsum=tgt_sum[p.first];
-                if(scoring==OnlyCount){
+                if(scoring==OnlyFrac){
                     fout<<m.first<<" ||| "<<p.first<<" ||| 1 "
                     <<p.second.ps2t/ssum<<" 1 "<<p.second.pt2s/tsum<<" 2.718"<<endl;
                 }
@@ -495,6 +495,7 @@ bool Score(JKArgs& args){
 void Readlog(JKArgs& args){
     if(!args.count("i"))usage();
     ifstream is(args["i"]);
+    string message=args["m"];
     
     vector<vector<double>> scores(8,vector<double>(6,0));
     for(string line; getline(is,line);){
@@ -533,13 +534,9 @@ void Readlog(JKArgs& args){
          cout<<"\\\\"<<endl;
          if(i<7)cout<<R"(\cline{2-7})"<<endl;
     }
-    cout<<R"(\hline
-\end{tabular}
-\caption{bleu of different maxlen and cutoff}
-\end{table}
-    
-)";
-    
+    if(message!="")message=", "+message;
+    string tail="\\hline\n\\end{tabular}\n\\caption{bleu of different maxlen and cutoff "+message+"}\n\\end{table}\n";
+    cout<<tail<<endl;
 }
 
 void usage(){
@@ -547,8 +544,8 @@ void usage(){
     R"(
     proc -extract -src=source_file -tgt=target_file -o=output_file -maxlen=int -cutoff=int -inmemory=true
     -score -i=input -o=output [-nbest=int] [-lengthsort] [-lex_s2t=file] [-lex_t2s=file] [-lexcond=false]
-            [-scoring=Frac|Count|CountLex|OnlyLex]
-    -readlog -i=file
+            [-scoring=Frac|Count|CountLex|OnlyLex|OnlyFrac]
+    -readlog -i=file -m=message
     
     )";
     exit(-1);
