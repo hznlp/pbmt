@@ -378,7 +378,7 @@ struct PhraseInfo {
     PhraseInfo(double ls,double ps, double lt, double pt){ps2t=ps;pt2s=pt;ls2t=ls;lt2s=lt;}
 };
 typedef map<string,map<string,PhraseInfo>> PhraseTable;
-enum Scoring { Frac,Count,CountLex,OnlyLex};
+enum Scoring { Frac,Count,CountLex,OnlyLex,OnlyCount};
 
 bool Score(JKArgs& args){
     if(!args.count("i")||!args.count("o"))usage();
@@ -397,6 +397,7 @@ bool Score(JKArgs& args){
     if(args["scoring"]=="CountLex")scoring=CountLex;
     else if(args["scoring"]=="Count")scoring=Count;
     else if(args["scoring"]=="OnlyLex")scoring=OnlyLex;
+    else if(args["scoring"]=="OnlyCount")scoring=OnlyCount;
     
         
     ifstream fin(in);
@@ -476,8 +477,14 @@ bool Score(JKArgs& args){
             double ssum=src_sum[m.first];
             for(auto& p: m.second){
                 auto tsum=tgt_sum[p.first];
-                fout<<m.first<<" ||| "<<p.first<<" ||| "<<p.second.ls2t<<" "
-                <<p.second.ps2t/ssum<<" "<<p.second.lt2s<<" "<<p.second.pt2s/tsum<<" 2.718"<<endl;
+                if(scoring==OnlyCount){
+                    fout<<m.first<<" ||| "<<p.first<<" ||| 1 "
+                    <<p.second.ps2t/ssum<<" 1 "<<p.second.pt2s/tsum<<" 2.718"<<endl;
+                }
+                else{
+                    fout<<m.first<<" ||| "<<p.first<<" ||| "<<p.second.ls2t<<" "
+                    <<p.second.ps2t/ssum<<" "<<p.second.lt2s<<" "<<p.second.pt2s/tsum<<" 2.718"<<endl;
+                }
             }
         }
     }
