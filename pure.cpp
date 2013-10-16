@@ -540,7 +540,7 @@ void usage(){
     R"(
     proc -extract -src=source_file -tgt=target_file -o=output_file -maxlen=int -cutoff=int -inmemory=true
     -score -i=input -o=output [-nbest=int] [-lengthsort] [-lex_s2t=file] [-lex_t2s=file] [-lexcond=false]
-            [-scoring=Frac|Count|CountLex] [-zeroP]
+            [-scoring=Frac|Count|CountLex|OnlyLex]
     -readlog -i=file
     
     )";
