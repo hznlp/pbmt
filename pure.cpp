@@ -378,7 +378,7 @@ struct PhraseInfo {
     PhraseInfo(double ls,double ps, double lt, double pt){ps2t=ps;pt2s=pt;ls2t=ls;lt2s=lt;}
 };
 typedef map<string,map<string,PhraseInfo>> PhraseTable;
-enum Scoring { Frac,Count,CountLex};
+enum Scoring { Frac,Count,CountLex,OnlyLex};
 
 bool Score(JKArgs& args){
     if(!args.count("i")||!args.count("o"))usage();
@@ -396,6 +396,7 @@ bool Score(JKArgs& args){
     Scoring scoring=Frac;
     if(args["scoring"]=="CountLex")scoring=CountLex;
     else if(args["scoring"]=="Count")scoring=Count;
+    else if(args["scoring"]=="OnlyLex")scoring=OnlyLex;
     
         
     ifstream fin(in);
@@ -458,7 +459,7 @@ bool Score(JKArgs& args){
             }
         }
     }
-    if(args.count("zeroP")){
+    if(scoring==OnlyLex){
         for(auto& m: pt)
             for(auto& p: m.second)
                 fout<<m.first<<" ||| "<<p.first<<" ||| "<<p.second.ls2t<<" 1 "<<p.second.lt2s<<" 1 2.718"<<endl;
