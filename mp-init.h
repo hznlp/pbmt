@@ -33,7 +33,11 @@ struct PhraseInfo {
     :ps2t(ps),pt2s(pt),ls2t(ls),lt2s(lt){}
 };
 
-typedef unordered_map<string,map<string,PhraseInfo>> RichPhraseTable;
+class RichPhraseTable: public unordered_map<string,map<string,PhraseInfo>>{
+public:
+    void read(string filename);
+    void print(string filename);
+};
 
 struct SimplePhraseInfo {
     double prob,count;
@@ -64,6 +68,7 @@ enum Scoring { Frac,Count,CountLex,OnlyLex,OnlyFrac,OnlyCount};
 
 void usage();
 void em(JKArgs& args);
+void combine(JKArgs& args);
 
 /* Get the A[i][j][ilen][jlen] for arrary A[n][m][l][l] */
 int index(int i, int ilen, int j, int jlen, int n, int m, int l);

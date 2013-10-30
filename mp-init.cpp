@@ -108,13 +108,15 @@ void PhraseCutoff(const string& filename,
         if(line=="")continue;
         src_corpus.push_back(vector<string>());
         split(src_corpus.back(),line,is_any_of(" \t"));
+        //for(int i=0;i<src_corpus.back().size();i++)
+        //    cout<<i<<": "<<src_corpus.back()[i]<<endl;
     }
 
     for(auto& sent : src_corpus){
         max_lens.push_back(vector<int>(sent.size(),max_phrase_length));
-        for(int i=0;i<(int)max_lens.back().size();i++){
+        for(int i=0;i<(int)sent.size();i++){
             max_lens.back()[i]=
-                min(max_phrase_length, (int)max_lens.back().size()-i);
+                min(max_phrase_length, (int)sent.size()-i);
         }
     }
 
@@ -270,12 +272,14 @@ bool ExtractPhrasePairs(const string& src,
                     sphrase+=ssent[i+k];
                     string tphrase="";
                     for(int l=0;l<tgt_max_lens[sid][j];l++){
-                        if((k+1)>max_length_ratio*(l+1)||
-                           (l+1)>max_length_ratio*(k+1))
-                            continue;
-                        //cerr<<i<<" "<<k<<" "<<j<<" "<<l<<endl;
                         if(tphrase!="")tphrase+=" ";
                         tphrase+=tsent[j+l];
+                        if((k+1)>(((int)max_length_ratio)*(l+1))||
+                           (l+1)>(((int)max_length_ratio)*(k+1))){
+                            //cerr<<i<<" "<<k<<" "<<j<<" "<<l<<endl;
+                            continue;
+                        }
+                        // cerr<<sphrase <<" ||| "<<tphrase<<" ||| "<<k+1<<" "<<l+1<<endl;
                         double prob=1E-5;
                         if(n-k-2>0&&m-l-2>0&&n>1&&m>1)
                             prob=numer[n-k-2][m-l-2]/denom[n-1][m-1];
@@ -519,6 +523,41 @@ void ExtractPhrasePairs(JKArgs& args){
     ExtractPhrasePairs(src,tgt,out,40,maxlen,4,cutoff,inmemory);
 }
 
+void combine(JKArgs& args){
+    string ps2t=args["ps2t"];
+    string pt2s=args["pt2s"];
+    string out=args["o"];
+    if(ps2t==""||pt2s==""||out=="")usage();
+    LexDic lex_s2t,lex_t2s;
+    bool uselex=false;
+    if(args.count("lex_s2t")||args.count("lex_t2s"))uselex=true;
+    if(lex_s2t.read(args["lex_s2t"])==false)return;
+    if(lex_t2s.read(args["lex_t2s"])==false)return;
+
+    RichPhraseTable pt;
+    pt.read(ps2t);
+    ifstream is(pt2s.c_str());
+    for(string line; getline(is,line);){
+        trim(line);
+        if(line=="")continue;
+        vector<string> content;
+        split_regex(content,line,regex(" => | \\|\\|\\| "));
+        if(content.size()<3)continue;
+        vector<string> features;
+        split_regex(features,content[2],regex(" "));
+        auto& item=pt[content[1]][content[0]];
+        item.pt2s=stod(features[0]);
+        if(uselex){
+            vector<string> src,tgt;
+            split(src,content[1],is_any_of(" \t"));
+            split(tgt,content[0],is_any_of(" \t"));
+            item.ls2t=ScoreLex(src, tgt, lex_s2t);
+            item.lt2s=ScoreLex(tgt, src, lex_t2s);
+        }
+    }
+    pt.print(out);
+}
+
 /*Score the phrase pair*/
 double ScoreLex(vector<string>& src, vector<string>& tgt, LexDic& lex_s2t){
     double result=1;
@@ -531,6 +570,51 @@ double ScoreLex(vector<string>& src, vector<string>& tgt, LexDic& lex_s2t){
         result*=s2t;
     }
     return result;
+}
+
+
+void RichPhraseTable::
+read(string filename){
+    ifstream is(filename.c_str());
+    for(string line; getline(is,line);){
+        trim(line);
+        if(line=="")continue;
+        vector<string> content;
+        split_regex(content,line,regex(" => | \\|\\|\\| "));
+        if(content.size()<3)continue;
+        vector<string> features;
+        split_regex(features,content[2],regex(" "));
+        if(features.size()==1){
+            double fraccount=(double)stod(features[0]);
+            (*this)[content[0]][content[1]]=
+            PhraseInfo((double)1.0,fraccount,(double)1.0,fraccount);
+        }
+        else if(features.size()==2){
+            double count=(double)stod(features[1]);
+            double fraccount=(double)stod(features[0]);
+            (*this)[content[0]][content[1]]=
+            PhraseInfo(count,fraccount,(double)1.0,fraccount);
+        }
+        else if(features.size()>=4){
+            (*this)[content[0]][content[1]]=
+            PhraseInfo(stod(features[0]),stod(features[1]),
+                       stod(features[2]),stod(features[3]));
+        }
+    }
+    is.close();
+}
+
+void RichPhraseTable::
+print(string filename){
+    ofstream os(filename.c_str());
+    for(auto& omap:*this){
+        for(auto& item:omap.second){
+            os<<omap.first<<" ||| "<<item.first<<" ||| "<<item.second.ls2t
+                <<" "<<item.second.ps2t<<" "<<item.second.lt2s<<" "
+            <<item.second.pt2s<<endl;
+        }
+    }
+    os.close();
 }
 
 /*Score the raw phrase table*/

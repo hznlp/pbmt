@@ -11,6 +11,7 @@ void usage(){
     -readlog -i=file -m=message
     -em -src=sourcefile -tgt=targetfile [-lex=lex_s2t] [-round=int]
         [-init=frac|count] [-o=output_prefix] [-maxlen]
+    -combine -ps2t=pt_s2t -pt2s=pt_t2s -o=out
 
     )";
     exit(-1);
@@ -27,5 +28,7 @@ int main(int ac, char** av)
         Readlog(args);
     else if(args.count("em"))
         em(args);
+    else if(args.count("combine"))
+        combine(args);
     else usage();
 }
