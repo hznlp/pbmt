@@ -263,6 +263,7 @@ bool ExtractPhrasePairs(const string& src,
         int n=static_cast<int>(ssent.size());
         int m=static_cast<int>(tsent.size());
         if(n>max_sentence_length||m>max_sentence_length)continue;
+        if(cache!=nullptr)
         cache->push_back(SentenceCache((int)ssent.size(),(int)tsent.size(),5));
         for(int i=0;i<(int)ssent.size();i++){
             for(int j=0;j<(int)tsent.size();j++){
