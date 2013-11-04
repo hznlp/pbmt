@@ -380,7 +380,8 @@ print(ostream& os){
     }
 }
 
-void expectation(CorpusCache& cache){
+void expectation(CorpusCache& cache, double& alpha){
+    double alphaCount=0;
     for(auto& sp: cache){
         vector<vector<double>> target_probs(sp.m,vector<double>(sp.l,0.0));
         for(int j=0;j<sp.m;j++){
@@ -401,18 +402,18 @@ void expectation(CorpusCache& cache){
         vector<double> forward(sp.m,0.0),backward(sp.m,0.0);
         //forward[i] is the posterior probability of target words of 1...i+1
         for(int i=0;i<sp.l&&i<sp.m;i++)
-            forward[i]=target_probs[0][i];
+            forward[i]=target_probs[0][i]*alpha;
         for(int i=1;i<(int)forward.size();i++){
             for(int j=1;j<=sp.l&&i-j>=0;j++){
-                forward[i]+=forward[i-j]*target_probs[i-j+1][j-1];
+                forward[i]+=forward[i-j]*target_probs[i-j+1][j-1]*alpha;
             }
         }
         //backward[i] is the posterior probability of target words of i+1...m
         for(int i=0;i<sp.l&&i<sp.m;i++)
-            backward[sp.m-i-1]=target_probs[sp.m-i-1][i];
+            backward[sp.m-i-1]=target_probs[sp.m-i-1][i]*alpha;
         for(int i=sp.m-2;i>=0;i--){
             for(int j=1;j<=sp.l&&i+j<sp.m;j++){
-                backward[i]+=target_probs[i][j-1]*backward[i+j];
+                backward[i]+=target_probs[i][j-1]*backward[i+j]*alpha;
             }
         }
         //make sure forward[sp.m-1]==backward[0];
@@ -422,6 +423,7 @@ void expectation(CorpusCache& cache){
         assert(abs(forward[sp.m-1]-backward[0])<1e-5*backward[0]);
         //collect fractional count for each phrase pair
         //fraccount=forward[j]*backward[j+jlen]*p(t|s)/backward[0];
+
         for(int j=0;j<sp.m;j++){
             for(int jlen=0;jlen<sp.l&&j+jlen+1<=sp.m;jlen++){
                 double segprob=0;
@@ -433,17 +435,20 @@ void expectation(CorpusCache& cache){
                     for(int ilen=0;ilen<sp.l;ilen++){
                         if(sp(i,ilen,j,jlen)!=(void*)0){
                             sp(i,ilen,j,jlen)->count+=
-                            sp(i,ilen,j,jlen)->prob*segprob;
+                            sp(i,ilen,j,jlen)->prob*segprob*alpha;
+                            alphaCount+=sp(i,ilen,j,jlen)->prob*segprob*alpha;
                         }
                     }
                 }
             }
         }
     }
+    alpha=alphaCount/(alphaCount+cache.size());
 }
 
 void em(CorpusCache& cache, SimplePhraseTable& pt, int round, const string& out)
 {
+    double alpha=0.5;
     for(int i=0;i<round;i++){
         if(out!=""){
             string o=out+"."+to_string(i);
@@ -451,8 +456,8 @@ void em(CorpusCache& cache, SimplePhraseTable& pt, int round, const string& out)
             pt.print(os);
             os.close();
         }
-        cerr<<"round "<<i<<endl;
-        expectation(cache);
+        cerr<<"round "<<i<<", alpha:"<<alpha<<endl;
+        expectation(cache,alpha);
         pt.normalize();
 
     }
@@ -463,7 +468,7 @@ void em(JKArgs& args){
     const string& tgt=args["tgt"];
     const string& out=args["o"];
     const string& lex=args["lex"];
-    int round=3;
+    int round=5;
     if(args.count("round"))round=stoi(args["round"]);
     int max_sentence_length=40;
     int max_phrase_length=args.count("maxlen")?stoi(args["maxlen"]):5;
