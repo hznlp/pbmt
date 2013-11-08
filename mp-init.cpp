@@ -302,6 +302,9 @@ bool ExtractPhrasePairs(const string& src,
                                 auto& omap=pt[sphrase];
                                 auto iter=omap.find(tphrase);
                                 if(iter==omap.end())continue;
+                                cerr<<"found "<<sphrase<<" ||| "<<tphrase
+                                <<" ||| "<<iter->second.prob<<" "
+                                <<iter->second.count<< endl;
                                 cache->back()(i,k,j,l)=&(iter->second);
                             }
                         }
@@ -408,16 +411,16 @@ read(string filename, bool reverse){
             double count=(double)stod(features[1]);
             double fraccount=(double)stod(features[0]);
             (*this)[content[0]][content[1]]=
-            SimplePhraseInfo(fraccount,count);
+            SimplePhraseInfo(fraccount,fraccount);
         }
         else if(features.size()>=4){
             if(reverse){
                 (*this)[content[1]][content[0]]=
-                SimplePhraseInfo(stod(features[2]),0);
+                SimplePhraseInfo(stod(features[3]),stod(features[3]));
             }
             else{
                 (*this)[content[0]][content[1]]=
-                SimplePhraseInfo(stod(features[0]),0);
+                SimplePhraseInfo(stod(features[1]),stod(features[1]));
             }
         }
     }
