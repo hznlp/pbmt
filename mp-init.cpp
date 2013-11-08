@@ -237,6 +237,7 @@ bool ExtractPhrasePairs(const string& src,
                         SimplePhraseTable& pt,
                         CorpusCache* cache){
 
+    bool create_pt=pt.empty();
     if(src==""||tgt=="")return false;
     vector<vector<string>> src_corpus,tgt_corpus;
     vector<vector<int>> src_max_lens,tgt_max_lens;
@@ -288,14 +289,21 @@ bool ExtractPhrasePairs(const string& src,
                             os<<sphrase<<" ||| "<<tphrase
                                 <<" ||| "<<prob<<" 1"<<endl;
                         else{
-                            auto& item=pt[sphrase][tphrase];
-                            if(cache!=nullptr){
-                                //if(l==4)
-                                //    cerr<<"";
-                                cache->back()(i,k,j,l)=&item;
+                            if(create_pt){
+                                auto& item=pt[sphrase][tphrase];
+                                if(cache!=nullptr){
+                                    cache->back()(i,k,j,l)=&item;
+                                }
+                                item.prob+=prob;
+                                item.count+=1.0;
                             }
-                            item.prob+=prob;
-                            item.count+=1.0;
+                            else{
+                                if(pt.find(sphrase)==pt.end())continue;
+                                auto& omap=pt[sphrase];
+                                auto iter=omap.find(tphrase);
+                                if(iter==omap.end())continue;
+                                cache->back()(i,k,j,l)=&(iter->second);
+                            }
                         }
                     }
                 }
@@ -380,11 +388,42 @@ print(ostream& os){
     }
 }
 
+void SimplePhraseTable::
+read(string filename){
+    ifstream is(filename.c_str());
+    for(string line; getline(is,line);){
+        trim(line);
+        if(line=="")continue;
+        vector<string> content;
+        split_regex(content,line,regex(" => | \\|\\|\\| "));
+        if(content.size()<3)continue;
+        vector<string> features;
+        split_regex(features,content[2],regex(" "));
+        if(features.size()==1){
+            double fraccount=(double)stod(features[0]);
+            (*this)[content[0]][content[1]]=
+            SimplePhraseInfo(fraccount,fraccount);
+        }
+        else if(features.size()==2){
+            double count=(double)stod(features[1]);
+            double fraccount=(double)stod(features[0]);
+            (*this)[content[0]][content[1]]=
+            SimplePhraseInfo(fraccount,count);
+        }
+        else if(features.size()>=4){
+            (*this)[content[0]][content[1]]=
+            SimplePhraseInfo(stod(features[0]),stod(features[2]));
+        }
+    }
+    is.close();
+}
+
+
 void expectation(CorpusCache& cache, double& alpha){
     double alphaCount=0;
     for(auto& sp: cache){
         vector<vector<double>> target_probs(sp.m,vector<double>(sp.l,0.0));
-        alpha/=sp.n*sp.l;
+        //alpha/=sp.n*sp.l;
         for(int j=0;j<sp.m;j++){
             for(int jlen=0;jlen<sp.l;jlen++){
                 for(int i=0;i<sp.n;i++){
@@ -488,7 +527,7 @@ void expectation(CorpusCache& cache, double& alpha){
                 }
             }
         }
-        alpha*=sp.n*sp.l;
+        //alpha*=sp.n*sp.l;
     }
     //cerr<<alphaCount<<","<<cache.size()<<endl;
     alpha=alphaCount/(alphaCount+cache.size());
@@ -523,6 +562,7 @@ void em(JKArgs& args){
     double max_length_ratio=4;
     int min_phrase_count=0;
     SimplePhraseTable pt;
+    if(args.count("pt"))pt.read(args["pt"]);
     CorpusCache cache;
     ExtractPhrasePairs(src,tgt,"",
                        max_sentence_length,
