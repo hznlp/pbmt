@@ -10,7 +10,8 @@ void usage(){
     [-scoring=Frac|Count|CountLex|OnlyLex|OnlyFrac|OnlyCount]
     -readlog -i=file -m=message
     -em -src=sourcefile -tgt=targetfile [-lex=lex_s2t] [-round=int]
-        [-init=frac|count] [-o=output_prefix] [-maxlen]
+        [-init=frac|count] [-o=output_prefix] [-maxlen] [-pt=phrase-table]
+        [-reverse]
     -combine -ps2t=pt_s2t -pt2s=pt_t2s -o=out
 
     )";

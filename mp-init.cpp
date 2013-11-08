@@ -389,7 +389,7 @@ print(ostream& os){
 }
 
 void SimplePhraseTable::
-read(string filename){
+read(string filename, bool reverse){
     ifstream is(filename.c_str());
     for(string line; getline(is,line);){
         trim(line);
@@ -411,8 +411,14 @@ read(string filename){
             SimplePhraseInfo(fraccount,count);
         }
         else if(features.size()>=4){
-            (*this)[content[0]][content[1]]=
-            SimplePhraseInfo(stod(features[0]),stod(features[2]));
+            if(reverse){
+                (*this)[content[1]][content[0]]=
+                SimplePhraseInfo(stod(features[2]),0);
+            }
+            else{
+                (*this)[content[0]][content[1]]=
+                SimplePhraseInfo(stod(features[0]),0);
+            }
         }
     }
     is.close();
@@ -562,7 +568,7 @@ void em(JKArgs& args){
     double max_length_ratio=4;
     int min_phrase_count=0;
     SimplePhraseTable pt;
-    if(args.count("pt"))pt.read(args["pt"]);
+    if(args.count("pt"))pt.read(args["pt"],args.count("reverse"));
     CorpusCache cache;
     ExtractPhrasePairs(src,tgt,"",
                        max_sentence_length,

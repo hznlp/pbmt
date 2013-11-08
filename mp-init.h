@@ -62,7 +62,7 @@ class SimplePhraseTable : public
         void reset_count(double value);
         void ibm1_scoring(LexDic& ibm1);
         void print(ostream& os);
-        void read(string filename);
+        void read(string filename, bool direction);
 };
 
 enum Scoring { Frac,Count,CountLex,OnlyLex,OnlyFrac,OnlyCount};
