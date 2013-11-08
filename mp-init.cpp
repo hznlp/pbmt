@@ -289,7 +289,7 @@ bool ExtractPhrasePairs(const string& src,
                             os<<sphrase<<" ||| "<<tphrase
                                 <<" ||| "<<prob<<" 1"<<endl;
                         else{
-                            if(create_pt){
+                            if(create_pt||(k==0&&l==0)){
                                 auto& item=pt[sphrase][tphrase];
                                 if(cache!=nullptr){
                                     cache->back()(i,k,j,l)=&item;
@@ -429,7 +429,7 @@ void expectation(CorpusCache& cache, double& alpha){
     double alphaCount=0;
     for(auto& sp: cache){
         vector<vector<double>> target_probs(sp.m,vector<double>(sp.l,0.0));
-        //alpha/=sp.n*sp.l;
+        alpha/=sp.n*sp.l;
         for(int j=0;j<sp.m;j++){
             for(int jlen=0;jlen<sp.l;jlen++){
                 for(int i=0;i<sp.n;i++){
@@ -533,7 +533,7 @@ void expectation(CorpusCache& cache, double& alpha){
                 }
             }
         }
-        //alpha*=sp.n*sp.l;
+        alpha*=sp.n*sp.l;
     }
     //cerr<<alphaCount<<","<<cache.size()<<endl;
     alpha=alphaCount/(alphaCount+cache.size());
