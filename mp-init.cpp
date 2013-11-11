@@ -555,7 +555,6 @@ void em(CorpusCache& cache, SimplePhraseTable& pt, int round, const string& out)
         cerr<<"round "<<i<<", alpha:"<<alpha<<endl;
         expectation(cache,alpha);
         pt.normalize();
-
     }
 }
 
