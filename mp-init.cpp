@@ -621,17 +621,20 @@ bool ExtractPhrasePairs(const string& src,
 
 void ExtractPhrasePairs(JKArgs& args){
     string src="",tgt="",log_prefix="",out="",in="";
-    int maxlen=MAX_PHRASE_LEN;
+    int max_phrase_len=MAX_PHRASE_LEN;
+    int max_sent_len=100;
     int cutoff=MAX_CUTOFF;
     bool inmemory=true;
     if(args.count("src"))src=args["src"];
     if(args.count("tgt"))tgt=args["tgt"];
     if(args.count("log"))log_prefix=args["log"];
     if(args.count("o"))out=args["o"];
-    if(args.count("maxlen"))maxlen=stoi(args["maxlen"]);
+    if(args.count("max_phrase_len"))max_phrase_len=stoi(args["max_phrase_len"]);
     if(args.count("cutoff"))cutoff=stoi(args["cutoff"]);
     if(args["inmemory"]=="false")inmemory=false;
-    ExtractPhrasePairs(src,tgt,out,40,maxlen,4,cutoff,inmemory);
+    if(args.count("max_sent_len"))max_sent_len=stoi(args["max_sent_len"]);
+    ExtractPhrasePairs(src,tgt,out,max_sent_len,
+                       max_phrase_len,4,cutoff,inmemory);
 }
 
 void combine(JKArgs& args){
