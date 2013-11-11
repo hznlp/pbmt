@@ -263,7 +263,9 @@ bool ExtractPhrasePairs(const string& src,
         vector<string>& tsent=tgt_corpus[sid];
         int n=static_cast<int>(ssent.size());
         int m=static_cast<int>(tsent.size());
-        if(n>max_sentence_length||m>max_sentence_length)continue;
+        if(n>max_sentence_length||m>max_sentence_length){
+            continue;
+        }
         if(cache!=nullptr)
         cache->push_back(SentenceCache((int)ssent.size(),(int)tsent.size(),5));
         for(int i=0;i<(int)ssent.size();i++){
@@ -281,7 +283,7 @@ bool ExtractPhrasePairs(const string& src,
                             //cerr<<i<<" "<<k<<" "<<j<<" "<<l<<endl;
                             continue;
                         }
-                        // cerr<<sphrase <<" ||| "<<tphrase<<" ||| "<<k+1<<" "<<l+1<<endl;
+                        //cerr<<sphrase <<" ||| "<<tphrase<<" ||| "<<k+1<<" "<<l+1<<endl;
                         double prob=1E-5;
                         if(n-k-2>0&&m-l-2>0&&n>1&&m>1)
                             prob=numer[n-k-2][m-l-2]/denom[n-1][m-1];
@@ -303,8 +305,8 @@ bool ExtractPhrasePairs(const string& src,
                                 auto iter=omap.find(tphrase);
                                 if(iter==omap.end())continue;
                                 cerr<<"found "<<sphrase<<" ||| "<<tphrase
-                                <<" ||| "<<iter->second.prob<<" "
-                                <<iter->second.count<< endl;
+                                    <<" ||| "<<iter->second.prob<<" "
+                                    <<iter->second.count<<endl;
                                 cache->back()(i,k,j,l)=&(iter->second);
                             }
                         }
@@ -554,7 +556,14 @@ void em(CorpusCache& cache, SimplePhraseTable& pt, int round, const string& out)
         }
         cerr<<"round "<<i<<", alpha:"<<alpha<<endl;
         expectation(cache,alpha);
+        if(out!=""){
+            string o=out+"."+to_string(i)+".count";
+            ofstream os(o.c_str());
+            pt.print(os);
+            os.close();
+        }
         pt.normalize();
+
     }
 }
 
@@ -565,7 +574,7 @@ void em(JKArgs& args){
     const string& lex=args["lex"];
     int round=5;
     if(args.count("round"))round=stoi(args["round"]);
-    int max_sentence_length=40;
+    int max_sentence_length=100;
     int max_phrase_length=args.count("maxlen")?stoi(args["maxlen"]):5;
     double max_length_ratio=4;
     int min_phrase_count=0;
