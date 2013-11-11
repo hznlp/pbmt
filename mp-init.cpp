@@ -556,12 +556,12 @@ void em(CorpusCache& cache, SimplePhraseTable& pt, int round, const string& out)
         }
         cerr<<"round "<<i<<", alpha:"<<alpha<<endl;
         expectation(cache,alpha);
-        if(out!=""){
+        /*if(out!=""){
             string o=out+"."+to_string(i)+".count";
             ofstream os(o.c_str());
             pt.print(os);
             os.close();
-        }
+        }*/
         pt.normalize();
 
     }
