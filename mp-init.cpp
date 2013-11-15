@@ -222,110 +222,6 @@ read(const string& in){
     else return true;
 }
 
-/*
- Extract initial phrase pairs and set cache pointers for each sentence pair
- Each entry in the phrase table contains two features:
- (prob,count) where prob = fractional count and count = absolute count*/
-bool ExtractPhrasePairs(const string& src,
-                        const string& tgt,
-                        const string& out,
-                        int max_sentence_length,
-                        int max_phrase_length,
-                        double max_length_ratio,
-                        int min_phrase_count,
-                        bool inmemory,
-                        SimplePhraseTable& pt,
-                        CorpusCache* cache){
-
-    bool create_pt=pt.empty();
-    if(src==""||tgt=="")return false;
-    vector<vector<string>> src_corpus,tgt_corpus;
-    vector<vector<int>> src_max_lens,tgt_max_lens;
-    string log_prefix="";
-    string logf="",loge="";
-    if(log_prefix!=""){
-        logf="log.f";
-        loge="log.e";
-    }
-
-    PhraseCutoff(src,logf,&src_corpus,&src_max_lens,
-                 max_phrase_length,min_phrase_count);
-    PhraseCutoff(tgt,loge,&tgt_corpus,&tgt_max_lens,
-                 max_phrase_length,min_phrase_count);
-
-    vector<vector<double>> denom(100,vector<double>(100,0)),numer=denom;
-    GenerateDenominator(denom);
-    GenerateNumerator(numer);
-
-    ofstream os(out.c_str());
-    for(uint64_t sid=0;sid<src_corpus.size();sid++){
-        vector<string>& ssent=src_corpus[sid];
-        vector<string>& tsent=tgt_corpus[sid];
-        int n=static_cast<int>(ssent.size());
-        int m=static_cast<int>(tsent.size());
-        if(n>max_sentence_length||m>max_sentence_length){
-            continue;
-        }
-        if(cache!=nullptr)
-        cache->push_back(SentenceCache((int)ssent.size(),(int)tsent.size(),5));
-        for(int i=0;i<(int)ssent.size();i++){
-            for(int j=0;j<(int)tsent.size();j++){
-                string sphrase="";
-                for(int k=0;k<src_max_lens[sid][i];k++){
-                    if(sphrase!="")sphrase+=" ";
-                    sphrase+=ssent[i+k];
-                    string tphrase="";
-                    for(int l=0;l<tgt_max_lens[sid][j];l++){
-                        if(tphrase!="")tphrase+=" ";
-                        tphrase+=tsent[j+l];
-                        if((k+1)>(((int)max_length_ratio)*(l+1))||
-                           (l+1)>(((int)max_length_ratio)*(k+1))){
-                            //cerr<<i<<" "<<k<<" "<<j<<" "<<l<<endl;
-                            continue;
-                        }
-                        //cerr<<sphrase <<" ||| "<<tphrase<<" ||| "<<k+1<<" "<<l+1<<endl;
-                        double prob=1E-5;
-                        if(n-k-2>0&&m-l-2>0&&n>1&&m>1)
-                            prob=numer[n-k-2][m-l-2]/denom[n-1][m-1];
-                        if(!inmemory&&os.good())
-                            os<<sphrase<<" ||| "<<tphrase
-                                <<" ||| "<<prob<<" 1"<<endl;
-                        else{
-                            if(create_pt||(k==0&&l==0)){
-                                auto& item=pt[sphrase][tphrase];
-                                if(cache!=nullptr){
-                                    cache->back()(i,k,j,l)=&item;
-                                }
-                                item.prob+=prob;
-                                item.count+=1.0;
-                            }
-                            else{
-                                if(pt.find(sphrase)==pt.end())continue;
-                                auto& omap=pt[sphrase];
-                                auto iter=omap.find(tphrase);
-                                if(iter==omap.end())continue;
-                                cerr<<"found "<<sphrase<<" ||| "<<tphrase
-                                    <<" ||| "<<iter->second.prob<<" "
-                                    <<iter->second.count<<endl;
-                                cache->back()(i,k,j,l)=&(iter->second);
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        //cerr<<cache->back()(ssent.size(),4,tsent.size(),4)<<endl;
-        //cerr<<sid<<endl;
-    }
-    if(inmemory&&os.good()){
-        for(auto& m: pt)
-            for(auto& i: m.second)
-                os<<m.first<<" ||| "<<i.first<<" ||| "<<i.second.prob
-                <<" "<<i.second.count<<endl;
-    }
-    os.close();
-    return true;
-}
 
 void
 SimplePhraseTable::
@@ -427,6 +323,122 @@ read(string filename, bool reverse){
         }
     }
     is.close();
+}
+
+/*
+ Extract initial phrase pairs and set cache pointers for each sentence pair
+ Each entry in the phrase table contains two features:
+ (prob,count) where prob = fractional count and count = absolute count*/
+bool ExtractPhrasePairs(const string& src,
+                        const string& tgt,
+                        const string& out,
+                        int max_sentence_length,
+                        int max_phrase_length,
+                        double max_length_ratio,
+                        int min_phrase_count,
+                        bool inmemory,
+                        SimplePhraseTable& pt,
+                        CorpusCache* cache){
+
+    bool create_pt=pt.empty();
+    if(src==""||tgt=="")return false;
+    vector<vector<string>> src_corpus,tgt_corpus;
+    vector<vector<int>> src_max_lens,tgt_max_lens;
+    string log_prefix="";
+    string logf="",loge="";
+    if(log_prefix!=""){
+        logf="log.f";
+        loge="log.e";
+    }
+
+    PhraseCutoff(src,logf,&src_corpus,&src_max_lens,
+                 max_phrase_length,min_phrase_count);
+    PhraseCutoff(tgt,loge,&tgt_corpus,&tgt_max_lens,
+                 max_phrase_length,min_phrase_count);
+
+    vector<vector<double>> denom(100,vector<double>(100,0)),numer=denom;
+    GenerateDenominator(denom);
+    GenerateNumerator(numer);
+
+    ofstream os(out.c_str());
+    for(uint64_t sid=0;sid<src_corpus.size();sid++){
+        vector<string>& ssent=src_corpus[sid];
+        vector<string>& tsent=tgt_corpus[sid];
+        int n=static_cast<int>(ssent.size());
+        int m=static_cast<int>(tsent.size());
+        if(n>max_sentence_length||m>max_sentence_length){
+            continue;
+        }
+        if(cache!=nullptr)
+            cache->push_back(SentenceCache((int)ssent.size(),(int)tsent.size(),5));
+        for(int i=0;i<(int)ssent.size();i++){
+            for(int j=0;j<(int)tsent.size();j++){
+                string sphrase="";
+                for(int k=0;k<src_max_lens[sid][i];k++){
+                    if(sphrase!="")sphrase+=" ";
+                    sphrase+=ssent[i+k];
+                    string tphrase="";
+                    for(int l=0;l<tgt_max_lens[sid][j];l++){
+                        if(tphrase!="")tphrase+=" ";
+                        tphrase+=tsent[j+l];
+                        if((k+1)>(((int)max_length_ratio)*(l+1))||
+                           (l+1)>(((int)max_length_ratio)*(k+1))){
+                            //cerr<<i<<" "<<k<<" "<<j<<" "<<l<<endl;
+                            continue;
+                        }
+                        //cerr<<sphrase <<" ||| "<<tphrase<<" ||| "<<k+1<<" "<<l+1<<endl;
+                        double prob=1E-5;
+                        if(n-k-2>0&&m-l-2>0&&n>1&&m>1)
+                            prob=numer[n-k-2][m-l-2]/denom[n-1][m-1];
+                        if(!inmemory&&os.good())
+                            os<<sphrase<<" ||| "<<tphrase
+                            <<" ||| "<<prob<<" 1"<<endl;
+                        else{
+                            if(create_pt){
+                                auto& item=pt[sphrase][tphrase];
+                                if(cache!=nullptr){
+                                    cache->back()(i,k,j,l)=&item;
+                                }
+                                item.prob+=prob;
+                                item.count+=1.0;
+                            }
+                            else{
+                                if(k==0&&l==0){
+                                    auto& item=pt[sphrase][tphrase];
+                                    if(cache!=nullptr){
+                                        cache->back()(i,k,j,l)=&item;
+                                    }
+                                    item.prob=0.001;
+                                    item.count=0.001;
+                                }
+                                else{
+                                    if(pt.find(sphrase)==pt.end())continue;
+                                    auto& omap=pt[sphrase];
+                                    auto iter=omap.find(tphrase);
+                                    if(iter==omap.end())continue;
+                                    /*
+                                    cerr<<"found "<<sphrase<<" ||| "<<tphrase
+                                        <<" ||| "<<iter->second.prob<<" "
+                                        <<iter->second.count<<endl;*/
+                                    cache->back()(i,k,j,l)=&(iter->second);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        //cerr<<cache->back()(ssent.size(),4,tsent.size(),4)<<endl;
+        //cerr<<sid<<endl;
+    }
+    if(inmemory&&os.good()){
+        for(auto& m: pt)
+            for(auto& i: m.second)
+                os<<m.first<<" ||| "<<i.first<<" ||| "<<i.second.prob
+                <<" "<<i.second.count<<endl;
+    }
+    os.close();
+    return true;
 }
 
 
