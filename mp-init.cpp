@@ -645,8 +645,8 @@ void combine(JKArgs& args){
     LexDic lex_s2t,lex_t2s;
     bool uselex=false;
     if(args.count("lex_s2t")||args.count("lex_t2s"))uselex=true;
-    if(lex_s2t.read(args["lex_s2t"])==false)return;
-    if(lex_t2s.read(args["lex_t2s"])==false)return;
+    if(uselex&&lex_s2t.read(args["lex_s2t"])==false)return;
+    if(uselex&&lex_t2s.read(args["lex_t2s"])==false)return;
 
     RichPhraseTable pt;
     pt.read(ps2t);
@@ -668,6 +668,7 @@ void combine(JKArgs& args){
             item.ls2t=ScoreLex(src, tgt, lex_s2t);
             item.lt2s=ScoreLex(tgt, src, lex_t2s);
         }
+        else item.ls2t=item.lt2s=1;
     }
     pt.print(out);
 }
