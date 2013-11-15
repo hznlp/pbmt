@@ -408,8 +408,10 @@ bool ExtractPhrasePairs(const string& src,
                                     if(cache!=nullptr){
                                         cache->back()(i,k,j,l)=&item;
                                     }
-                                    item.prob=0.001;
-                                    item.count=0.001;
+                                    if(item.prob==0){
+                                        item.prob=0.001;
+                                        item.count=0.001;
+                                    }
                                 }
                                 else{
                                     if(pt.find(sphrase)==pt.end())continue;
