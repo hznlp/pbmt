@@ -13,6 +13,7 @@ void usage(){
         [-init=frac|count] [-o=output_prefix] [-maxlen] [-pt=phrase-table]
         [-reverse]
     -combine -ps2t=pt_s2t -pt2s=pt_t2s -o=out
+    -filter -i=input -block=src|tgt
 
     )";
     exit(-1);
@@ -31,5 +32,7 @@ int main(int ac, char** av)
         em(args);
     else if(args.count("combine"))
         combine(args);
+    else if(args.count("filter"))
+        filter(args);
     else usage();
 }

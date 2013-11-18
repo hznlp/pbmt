@@ -921,3 +921,18 @@ void Readlog(JKArgs& args){
     cout<<tail<<endl;
 }
 
+void filter(JKArgs& args){
+    if(!args.count("i"))usage();
+    ifstream is(args["i"]);
+    for(string line;getline(is,line);){
+        vector<string> words;
+        split(words,line,is_any_of(" \t"));
+        if(args["block"]=="s2t")
+            words[words.size()-4]="1";
+        else
+            words[words.size()-2]="1";
+        line=join(words," ");
+        cout<<line<<endl;
+    }
+
+}

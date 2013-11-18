@@ -104,7 +104,7 @@ bool ExtractPhrasePairs(const string& src,
 void Readlog(JKArgs& args);
 
 bool Score(JKArgs& args);
-
+void filter(JKArgs& args);
 void ExtractPhrasePairs(JKArgs& args);
 
 #endif
