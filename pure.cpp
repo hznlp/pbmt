@@ -1,4 +1,5 @@
 #include "pure.h"
+#include "mp.h"
 
 void usage(){
     cerr<<

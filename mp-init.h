@@ -20,11 +20,22 @@
 #include <boost/regex.hpp>
 #include <boost/algorithm/string/regex.hpp>
 #include "JKArgs.h"
+#include "FracType.h"
 using namespace boost;
 using namespace std;
+using std::array;
 
 #define MAX_PHRASE_LEN 7
 #define MAX_CUTOFF 5
+
+struct Specs{
+    int max_sentence_length;
+    int max_phrase_length;
+    double max_length_ratio;
+    int min_phrase_count;
+    Specs():max_sentence_length(40),max_phrase_length(5),max_length_ratio(4),
+            min_phrase_count(0){};
+};
 
 struct PhraseInfo {
     double ps2t,pt2s,ls2t,lt2s;
@@ -41,6 +52,7 @@ public:
 
 struct SimplePhraseInfo {
     double prob,count;
+    FracType fractype;
     SimplePhraseInfo()
         :prob(0.0),count(0.0){}
     SimplePhraseInfo(double p,double c)
@@ -59,16 +71,18 @@ class SimplePhraseTable : public
     public:
         void normalize();
         void normalize_using_prob();
+        void knsmoothing();
         void reset_count(double value);
         void ibm1_scoring(LexDic& ibm1);
         void print(ostream& os);
+        void print(string out);
         void read(string filename, bool direction);
 };
 
 enum Scoring { Frac,Count,CountLex,OnlyLex,OnlyFrac,OnlyCount};
 
 void usage();
-void em(JKArgs& args);
+void em_init(JKArgs& args);
 void combine(JKArgs& args);
 
 /* Get the A[i][j][ilen][jlen] for arrary A[n][m][l][l] */
@@ -82,8 +96,6 @@ struct SentenceCache{
 };
 
 typedef vector<SentenceCache> CorpusCache;
-
-void expectation(CorpusCache& cache, SimplePhraseTable& pt);
 
 void PhraseCutoff(const string& filename,
                   const string& log_prefix,
@@ -100,6 +112,17 @@ bool ExtractPhrasePairs(const string& src,
                         double max_length_ratio,
                         int min_phrase_count,
                         bool inmemory);
+
+bool ExtractPhrasePairs(const string& src,
+                        const string& tgt,
+                        const string& out,
+                        int max_sentence_length,
+                        int max_phrase_length,
+                        double max_length_ratio,
+                        int min_phrase_count,
+                        bool inmemory,
+                        SimplePhraseTable& pt,
+                        CorpusCache* cache);
 
 void Readlog(JKArgs& args);
 

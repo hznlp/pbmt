@@ -1,6 +1,8 @@
 #include "mp-init.h"
 #include "pure.h"
 
+Specs specs;
+
 /*Fractional number generator*/
 void GenerateFactorial(vector<double>& fac)
 {
@@ -241,6 +243,72 @@ normalize(){
 
 void
 SimplePhraseTable::
+knsmoothing(){
+    //collect count of count
+    cerr<<"knsmoothing"<<endl;
+    map<string,double> unigram;
+    double unigramTotal=0;
+    vector<double> coc(MAX_DISCOUNT_ORDER-1,0.0);
+    for(auto& outM: *this){
+        for(auto& item: outM.second){
+            //item.second.fractype.print(cerr);
+            item.second.fractype.changeLogToReal();
+            //item.second.fractype.print(cerr);
+            unigram[item.first]+=1-item.second.fractype[0];
+            unigramTotal+=1-item.second.fractype[0];
+            for(int i=0;i<MAX_DISCOUNT_ORDER-1;i++)
+                coc[i]+=item.second.fractype[i+1];
+        }
+    }
+
+    for(int i=0;i<MAX_DISCOUNT_ORDER-1;i++)
+        cout<<"count of count "<<i+1<<": "<<coc[i]<<endl;
+
+    //calculate prob for unigram
+    for(auto& item: unigram){
+        item.second/=unigramTotal;
+    }
+
+    //calculate discounts
+    vector<double> discount;
+    calculateDiscount(coc,discount);
+    
+    //apply discount, calculate bow
+    for(auto& outM: *this){
+        double total=0,tdMass=0;
+        for(auto& item: outM.second){
+            // now, fractype[1]=discount 
+            // and fractype[0]=probability this item appearing
+            // fractype[2-3] not defined.
+            item.second.fractype[1]=
+                discountMass(item.second.fractype, discount);
+            item.second.fractype[0]=1-item.second.fractype[0];
+            total+=item.second.count;
+            tdMass+=item.second.fractype[1];
+        }
+        double bow=tdMass/total;
+        for(auto& item: outM.second){
+            // now fractype[2]=backoff weight
+            // fractype[3]=smoothed probability before interpolated
+            item.second.fractype[2]=bow;
+            item.second.fractype[3]=
+                (item.second.count-item.second.fractype[1])/total;
+            item.second.prob=item.second.fractype[3]+bow*unigram[item.first];
+            item.second.count=0;
+            if(item.second.prob<=0){
+                //cerr<<outM.first<<" => "<<item.first<<" count: "
+                //<<item.second.count<<", total: "<<total<<endl;
+                item.second.prob=1E-10;
+            }
+            //assert(item.second.prob>0);
+            item.second.fractype.resetToLog();
+        }
+    }
+}
+
+
+void
+SimplePhraseTable::
 reset_count(double value){
     for(auto& omap: *this){
         for(auto& item : omap.second){
@@ -289,6 +357,20 @@ print(ostream& os){
     }
 }
 
+void
+SimplePhraseTable::
+print(string out){
+    ofstream os(out.c_str());
+    for(auto& omap: *this){
+        for(auto& item : omap.second){
+            os<<omap.first<<" ||| "<<item.first<<" ||| "
+            <<item.second.prob<<" "<<item.second.count<<endl;
+        }
+    }
+    os.close();
+}
+
+
 void SimplePhraseTable::
 read(string filename, bool reverse){
     ifstream is(filename.c_str());
@@ -306,7 +388,7 @@ read(string filename, bool reverse){
             SimplePhraseInfo(fraccount,fraccount);
         }
         else if(features.size()==2){
-            double count=(double)stod(features[1]);
+            //double count=(double)stod(features[1]);
             double fraccount=(double)stod(features[0]);
             (*this)[content[0]][content[1]]=
             SimplePhraseInfo(fraccount,fraccount);
@@ -443,6 +525,74 @@ bool ExtractPhrasePairs(const string& src,
     return true;
 }
 
+void viterbi(CorpusCache& cache, double& alpha){
+    for(auto& sp: cache){
+        vector<vector<double>> target_probs(sp.m,vector<double>(sp.l,0.0));
+        vector<vector<pair<int,int>>> target_best(sp.m,
+                                                  vector<pair<int,int>>(sp.m));
+        alpha/=sp.n*sp.l;
+        for(int j=0;j<sp.m;j++){
+            for(int jlen=0;jlen<sp.l;jlen++){
+                for(int i=0;i<sp.n;i++){
+                    for(int ilen=0;ilen<sp.l;ilen++){
+                        if(sp(i,ilen,j,jlen)!=(void*)0){
+                            if(target_probs[j][jlen]<
+                               sp(i,ilen,j,jlen)->prob*alpha){
+                                target_probs[j][jlen]=
+                                    sp(i,ilen,j,jlen)->prob*alpha;
+                                target_best[j][jlen]=make_pair(i,ilen);
+                            }
+                            if(sp(i,ilen,j,jlen)->prob>1){
+                                cerr<<"wth prob>1 : "
+                                <<sp(i,ilen,j,jlen)->prob<<endl;
+                            }
+                        }
+                    }
+                }
+                //cout<<target_probs[j][jlen]<<" ";
+            }
+            //cout<<endl;
+        }
+        //cout<<endl;
+        for(int j=0;j<sp.m;j++){
+            for(int jlen=0;jlen<sp.l;jlen++){
+                cerr<<"("<<j<<","<<jlen<<")=>("
+                <<target_best[j][jlen].first
+                <<" "<<target_best[j][jlen].second<<") ";
+            }
+            cerr<<endl;
+        }
+
+        //viterbi
+        vector<pair<double,int> > viterbi(sp.m,pair<double,int>(0.0,0));
+        for(int i=0;i<sp.l&&i<sp.m;i++){
+            viterbi[i]=pair<double,int>(target_probs[0][i],-1);
+        }
+        for(int i=1;i<(int)viterbi.size();i++){
+            for(int j=1;j<=sp.l&&i-j>=0;j++){
+                if(viterbi[i-j].first*target_probs[i-j+1][j-1]>viterbi[i].first)
+                    viterbi[i]=
+                    make_pair(viterbi[i-j].first*target_probs[i-j+1][j-1],i-j);
+            }
+        }
+        int pos=sp.m-1;
+        string sequence="";
+        string source="";
+        while(pos>=0){
+            sequence=to_string(viterbi[pos].second+1)+","+to_string(pos)
+                        +" "+sequence;
+            cout<<viterbi[pos].second+1<<","<<pos-viterbi[pos].second<<endl;
+            pair<int,int> srcpair=
+                target_best[viterbi[pos].second+1][pos-viterbi[pos].second];
+            source=to_string(srcpair.first)+","+
+                    to_string(srcpair.second)
+                    +" "+source;
+            pos=viterbi[pos].second;
+        }
+        cout<<"best seg:"<<sequence<<endl;
+        cout<<"     src:"<<source<<endl;
+    }
+}
 
 void expectation(CorpusCache& cache, double& alpha){
     double alphaCount=0;
@@ -505,6 +655,7 @@ void expectation(CorpusCache& cache, double& alpha){
                     make_pair(viterbi[i-j].first*target_probs[i-j+1][j-1],i-j);
             }
         }
+
         int pos=sp.m-1;
         string sequence="";
         while(pos>=0){
@@ -558,7 +709,9 @@ void expectation(CorpusCache& cache, double& alpha){
     alpha=alphaCount/(alphaCount+cache.size());
 }
 
-void em(CorpusCache& cache, SimplePhraseTable& pt, int round, const string& out)
+void em(CorpusCache& cache, SimplePhraseTable& pt,
+        int round, const string& out,
+        bool vit)
 {
     double alpha=0.5;
     for(int i=0;i<round;i++){
@@ -569,6 +722,10 @@ void em(CorpusCache& cache, SimplePhraseTable& pt, int round, const string& out)
             os.close();
         }
         cerr<<"round "<<i<<", alpha:"<<alpha<<endl;
+        if(vit){
+            viterbi(cache,alpha);
+            break;
+        }
         expectation(cache,alpha);
         /*if(out!=""){
             string o=out+"."+to_string(i)+".count";
@@ -577,29 +734,25 @@ void em(CorpusCache& cache, SimplePhraseTable& pt, int round, const string& out)
             os.close();
         }*/
         pt.normalize();
-
     }
 }
 
-void em(JKArgs& args){
+void em_init(JKArgs& args){
     const string& src=args["src"];
     const string& tgt=args["tgt"];
     const string& out=args["o"];
     const string& lex=args["lex"];
     int round=5;
     if(args.count("round"))round=stoi(args["round"]);
-    int max_sentence_length=100;
-    int max_phrase_length=args.count("maxlen")?stoi(args["maxlen"]):5;
-    double max_length_ratio=4;
-    int min_phrase_count=0;
+    specs.max_phrase_length=args.count("maxlen")?stoi(args["maxlen"]):5;
     SimplePhraseTable pt;
     if(args.count("pt"))pt.read(args["pt"],args.count("reverse"));
     CorpusCache cache;
     ExtractPhrasePairs(src,tgt,"",
-                       max_sentence_length,
-                       max_phrase_length,
-                       max_length_ratio,
-                       min_phrase_count,
+                       specs.max_sentence_length,
+                       specs.max_phrase_length,
+                       specs.max_length_ratio,
+                       specs.min_phrase_count,
                        true,
                        pt,
                        &cache);
@@ -612,7 +765,7 @@ void em(JKArgs& args){
         pt.normalize_using_prob();
     else
         pt.normalize();
-    em(cache,pt,round,out);
+    em(cache,pt,round,out,args.count("viterbi"));
 }
 
 /*Extract initial phrase pairs*/
