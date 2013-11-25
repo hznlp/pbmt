@@ -1080,10 +1080,16 @@ void filter(JKArgs& args){
     for(string line;getline(is,line);){
         vector<string> words;
         split(words,line,is_any_of(" \t"));
-        if(args["block"]=="s2t")
+        if(args["block"]=="s2t"){
             words[words.size()-4]="1";
-        else
+            words[words.size()-1]="1";
+            words[words.size()-3]="1";
+        }
+        else{
             words[words.size()-2]="1";
+            words[words.size()-1]="1";
+            words[words.size()-3]="1";
+        }
         line=join(words," ");
         cout<<line<<endl;
     }
