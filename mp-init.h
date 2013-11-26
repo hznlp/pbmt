@@ -33,9 +33,10 @@ struct Specs{
     int max_phrase_length;
     double max_length_ratio;
     int min_phrase_count;
-    double model1_threshold;
+    double prune_threshold;
+    int prune_method;
     Specs():max_sentence_length(40),max_phrase_length(5),max_length_ratio(4),
-            min_phrase_count(0),model1_threshold(1E-3){};
+            min_phrase_count(0),prune_threshold(1E-3),prune_method(0){};
 };
 
 struct PhraseInfo {
@@ -72,6 +73,9 @@ double ScoreLex(vector<string>& src, vector<string>& tgt, LexDic& lex_s2t,
                 int i, int ilen, int j, int jlen);
 double VScoreLex(vector<string>& src, vector<string>& tgt, LexDic& lex_s2t,
                 int i, int ilen, int j, int jlen);
+void VScoreLex(vector<string>& src, vector<string>& tgt, LexDic& lex_s2t,
+               vector<vector<vector<vector<double>>>>& scores,
+               double threshold);
 
 class SimplePhraseTable : public
     map<string,map<string,SimplePhraseInfo>>{
@@ -95,6 +99,7 @@ void combine(JKArgs& args);
 /* Get the A[i][j][ilen][jlen] for arrary A[n][m][l][l] */
 int index(int i, int ilen, int j, int jlen, int n, int m, int l);
 typedef SimplePhraseInfo* PSimplePhraseInfo;
+
 struct SentenceCache{
     PSimplePhraseInfo* p;
     int n,m,l;

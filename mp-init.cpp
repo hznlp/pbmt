@@ -454,7 +454,15 @@ bool ExtractPhrasePairs(const string& src,
             continue;
         }
         if(cache!=nullptr)
-            cache->push_back(SentenceCache((int)ssent.size(),(int)tsent.size(),5));
+            cache->push_back(
+                SentenceCache((int)ssent.size(),(int)tsent.size(),5));
+
+        vector<vector<vector<vector<double>>>> lexs2t_scores,lext2s_scores;
+        if(lex_s2t&&lex_t2s){
+            VScoreLex(ssent,tsent,*lex_s2t,lexs2t_scores,specs.prune_threshold);
+            VScoreLex(tsent,ssent,*lex_t2s,lext2s_scores,specs.prune_threshold);
+        }
+
         for(int i=0;i<(int)ssent.size();i++){
             for(int j=0;j<(int)tsent.size();j++){
                 string sphrase="";
@@ -481,12 +489,21 @@ bool ExtractPhrasePairs(const string& src,
                         else{
                             if(create_pt){
                                 if(lex_s2t&&lex_t2s){
-                                    double score_s2t=VScoreLex(
+                                    double score_s2t=lexs2t_scores[i][k][j][l];
+                                    double score_t2s=lext2s_scores[j][l][i][k];
+/*
+                                    cerr<<i<<" "<<k<<" "<<j<<" "<<l<<endl;
+                                    cerr<<"new s2t "<<score_s2t<<endl;
+                                    cerr<<"new t2s "<<score_t2s<<endl;
+                                    score_s2t=VScoreLex(
                                         ssent,tsent,*lex_s2t,i,k,j,l);
-                                    double score_t2s=VScoreLex(
+                                    score_t2s=VScoreLex(
                                         tsent,ssent,*lex_t2s,j,l,i,k);
+                                    cerr<<"old s2t "<<score_s2t<<endl;
+                                    cerr<<"old t2s "<<score_t2s<<endl;
+*/
                                     if(pow(score_s2t*score_t2s,1.0/(k+l+2))
-                                       <=specs.model1_threshold){
+                                       <=specs.prune_threshold){
                                         //cerr<<"score_s2t:"<<score_s2t
                                         //<<", score_t2s:"<<score_t2s<<endl;
                                         continue;
@@ -609,7 +626,7 @@ void viterbi(CorpusCache& cache, double& alpha){
         cout<<"     src:"<<source<<endl;
     }
 }
-
+/*
 void expectation(CorpusCache& cache, double& alpha){
     double alphaCount=0;
     for(auto& sp: cache){
@@ -700,7 +717,7 @@ void expectation(CorpusCache& cache, double& alpha){
                 segprob=before*after*target_probs[j][jlen]/backward[0];
 
                 if(segprob>1||segprob<=0){
-                    //cerr<<"segprob "<<segprob<<","<<j<<","<<jlen<<endl;
+                    cerr<<"segprob "<<segprob<<","<<j<<","<<jlen<<endl;
                 }
                 if(segprob<=0)continue;
                 for(int i=0;i<sp.n;i++){
@@ -710,10 +727,12 @@ void expectation(CorpusCache& cache, double& alpha){
                                     /target_probs[j][jlen];
                             sp(i,ilen,j,jlen)->count+=count;
                             alphaCount+=count;
-                            if(count>1)
+                            if(count>(1+1e-5))
                             cerr<<i<<","<<ilen<<","<<j
                                 <<","<<jlen<<" ["<<sp.m<<","<<sp.n<<"]"
-                                <<",count "<<count<<endl;
+                                <<", count "<<count
+                                <<", target probs "
+                                <<target_probs[j][jlen]<<endl;
                         }
                     }
                 }
@@ -743,12 +762,7 @@ void em(CorpusCache& cache, SimplePhraseTable& pt,
             break;
         }
         expectation(cache,alpha);
-        /*if(out!=""){
-            string o=out+"."+to_string(i)+".count";
-            ofstream os(o.c_str());
-            pt.print(os);
-            os.close();
-        }*/
+
         pt.normalize();
     }
 }
@@ -793,7 +807,7 @@ void em_init(JKArgs& args){
         pt.normalize();
     em(cache,pt,round,out,args.count("viterbi"));
 }
-
+*/
 /*Extract initial phrase pairs*/
 bool ExtractPhrasePairs(const string& src,
                         const string& tgt,
@@ -892,6 +906,59 @@ double ScoreLex(vector<string>& src, vector<string>& tgt, LexDic& lex_s2t,
         result*=s2t;
     }
     return result;
+}
+
+void VScoreLex(vector<string>& src, vector<string>& tgt, LexDic& lex_s2t,
+               vector<vector<vector<vector<double>>>>& scores,
+                 double threshold){
+    scores=vector<vector<vector<vector<double>>>>(
+                src.size(),
+                vector<vector<vector<double>>>(specs.max_phrase_length,
+                vector<vector<double>>(tgt.size(),
+                vector<double>(specs.max_phrase_length,0.0))));
+
+    vector<vector<double>> w2w(src.size(),
+                                vector<double>(tgt.size(),0.0));
+
+    vector<vector<vector<double>>> w2span(tgt.size(),
+                            vector<vector<double>>(src.size(),
+                            vector<double>(specs.max_phrase_length,0.0)));
+
+    for(int i=0;i<src.size();i++)
+        for(int j=0;j<tgt.size();j++){
+            w2w[i][j]=max(lex_s2t["<NULL>"][tgt[j]],lex_s2t[src[i]][tgt[j]]);
+            //cerr<<i<<" "<<j<<" "<<w2w[i][j]<<endl;
+        }
+
+
+    for(int j=0;j<tgt.size();j++)
+        for(int i=0;i<src.size();i++){
+            for(int ilen=0;ilen<specs.max_phrase_length&&i+ilen<src.size();
+                            ilen++){
+                w2span[j][i][ilen]=w2w[i+ilen][j];
+                if(ilen>0)
+                    w2span[j][i][ilen]=
+                        max(w2span[j][i][ilen],w2span[j][i][ilen-1]);
+                if(specs.prune_method==1)
+                    w2span[j][i][ilen]=min(w2span[j][i][ilen],threshold);
+                //cerr<<i<<" "<<j<<" "<<ilen<<" "<<w2span[j][i][ilen]<<endl;
+            }
+        }
+
+    for(int i=0;i<src.size();i++)
+        for(int ilen=0;ilen<specs.max_phrase_length
+            &&i+ilen<src.size();ilen++)
+            for(int j=0;j<tgt.size();j++){
+                for(int jlen=0;jlen<specs.max_phrase_length
+                        &&j+jlen<tgt.size();jlen++)
+            {
+                    scores[i][ilen][j][jlen]=w2span[j+jlen][i][ilen];
+                    if(jlen>0)
+                        scores[i][ilen][j][jlen]*=scores[i][ilen][j][jlen-1];
+                //cerr<<i<<" "<<ilen<<" "<<j<<" "<<jlen<<" "<<
+                //    scores[i][ilen][j][jlen]<<endl;
+            }
+    }
 }
 
 double VScoreLex(vector<string>& src, vector<string>& tgt, LexDic& lex_s2t,

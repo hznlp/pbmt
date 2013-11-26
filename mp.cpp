@@ -8,7 +8,9 @@ void em(JKArgs& args){
     const string& lex_s2t=args["lex_s2t"];
     const string& lex_t2s=args["lex_t2s"];
 
-    if(args.count("threshold"))specs.model1_threshold=stof(args["threshold"]);
+    if(args.count("threshold"))specs.prune_threshold=stof(args["threshold"]);
+    if(args.count("prune"))specs.prune_method=stoi(args["prune"]);
+    
     bool knsmoothing=(args["kn"]=="true");
     int round=5;
     if(args.count("round"))round=stoi(args["round"]);

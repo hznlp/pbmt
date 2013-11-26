@@ -68,6 +68,7 @@ expectation(CorpusCache& cache){
                 forward[i]+=forward[i-j]*target_probs[i-j+1][j-1];
             }
         }
+        
         //backward[i] is the posterior probability of target words of i+1...m
         for(int i=0;i<sp.l&&i<sp.m;i++)
             backward[sp.m-i-1]=target_probs[sp.m-i-1][i];
@@ -132,10 +133,12 @@ expectation(CorpusCache& cache){
                             //cerr<<"after update"<<endl;
                             //sp(i,ilen,j,jlen)->fractype.print(cerr);
                             alphaCount+=count;
-                            if(count>1)
+                            if(count>1+1e-5)
                                 cerr<<i<<","<<ilen<<","<<j
                                 <<","<<jlen<<" ["<<sp.m<<","<<sp.n<<"]"
-                                <<",count "<<count<<endl;
+                                <<",count "<<count
+                                <<", target probs "
+                                <<target_probs[j][jlen]<<endl;
                         }
                     }
                 }
