@@ -419,6 +419,8 @@ bool ExtractPhrasePairs(const string& src,
                         double max_length_ratio,
                         int min_phrase_count,
                         bool inmemory,
+                        LexDic* lex_s2t,
+                        LexDic* lex_t2s,
                         SimplePhraseTable& pt,
                         CorpusCache* cache){
 
@@ -468,15 +470,29 @@ bool ExtractPhrasePairs(const string& src,
                             //cerr<<i<<" "<<k<<" "<<j<<" "<<l<<endl;
                             continue;
                         }
-                        //cerr<<sphrase <<" ||| "<<tphrase<<" ||| "<<k+1<<" "<<l+1<<endl;
+                        //cerr<<sphrase <<" ||| "<<tphrase
+                        //<<" ||| "<<k+1<<" "<<l+1<<endl;
                         double prob=1E-5;
                         if(n-k-2>0&&m-l-2>0&&n>1&&m>1)
                             prob=numer[n-k-2][m-l-2]/denom[n-1][m-1];
                         if(!inmemory&&os.good())
                             os<<sphrase<<" ||| "<<tphrase
-                            <<" ||| "<<prob<<" 1"<<endl;
+                              <<" ||| "<<prob<<" 1"<<endl;
                         else{
                             if(create_pt){
+                                if(lex_s2t&&lex_t2s){
+                                    double score_s2t=VScoreLex(
+                                        ssent,tsent,*lex_s2t,i,k,j,l);
+                                    double score_t2s=VScoreLex(
+                                        tsent,ssent,*lex_t2s,j,l,i,k);
+                                    if(pow(score_s2t*score_t2s,1.0/(k+l+2))
+                                       <=specs.model1_threshold){
+                                        //cerr<<"score_s2t:"<<score_s2t
+                                        //<<", score_t2s:"<<score_t2s<<endl;
+                                        continue;
+                                    }
+                                }
+
                                 auto& item=pt[sphrase][tphrase];
                                 if(cache!=nullptr){
                                     cache->back()(i,k,j,l)=&item;
@@ -742,18 +758,28 @@ void em_init(JKArgs& args){
     const string& tgt=args["tgt"];
     const string& out=args["o"];
     const string& lex=args["lex"];
+    const string& lex_s2t=args["lex_s2t"];
+    const string& lex_t2s=args["lex_t2s"];
+
     int round=5;
     if(args.count("round"))round=stoi(args["round"]);
     specs.max_phrase_length=args.count("maxlen")?stoi(args["maxlen"]):5;
     SimplePhraseTable pt;
     if(args.count("pt"))pt.read(args["pt"],args.count("reverse"));
     CorpusCache cache;
+    LexDic* p_lex_s2t=NULL;
+    LexDic* p_lex_t2s=NULL;
+    if(lex_s2t!="")p_lex_s2t=new LexDic(lex_s2t);
+    if(lex_t2s!="")p_lex_t2s=new LexDic(lex_t2s);
+    
     ExtractPhrasePairs(src,tgt,"",
                        specs.max_sentence_length,
                        specs.max_phrase_length,
                        specs.max_length_ratio,
                        specs.min_phrase_count,
                        true,
+                       p_lex_s2t,
+                       p_lex_t2s,
                        pt,
                        &cache);
     if(lex!=""){
@@ -783,7 +809,7 @@ bool ExtractPhrasePairs(const string& src,
                                max_phrase_length,
                                max_length_ratio,
                                min_phrase_count,
-                               inmemory, pt, nullptr);
+                               inmemory, NULL, NULL, pt, nullptr);
 }
 
 void ExtractPhrasePairs(JKArgs& args){
@@ -847,13 +873,41 @@ double ScoreLex(vector<string>& src, vector<string>& tgt, LexDic& lex_s2t){
         double s2t=lex_s2t["<NULL>"][t];
         for(auto& s: src){
             s2t+=lex_s2t[s][t];
-
         }
         result*=s2t;
     }
     return result;
 }
 
+double ScoreLex(vector<string>& src, vector<string>& tgt, LexDic& lex_s2t,
+                int i, int ilen, int j, int jlen){
+    double result=1;
+    for(int jpos=0;jpos<=jlen;jpos++){
+        string& t=tgt[j+jpos];
+        double s2t=lex_s2t["<NULL>"][t];
+        for(int ipos=0;ipos<=ilen;ipos++){
+            string& s=src[i+ipos];
+            s2t+=lex_s2t[s][t];
+        }
+        result*=s2t;
+    }
+    return result;
+}
+
+double VScoreLex(vector<string>& src, vector<string>& tgt, LexDic& lex_s2t,
+                int i, int ilen, int j, int jlen){
+    double result=1;
+    for(int jpos=0;jpos<=jlen;jpos++){
+        string& t=tgt[j+jpos];
+        double s2t=lex_s2t["<NULL>"][t];
+        for(int ipos=0;ipos<=ilen;ipos++){
+            string& s=src[i+ipos];
+            s2t=max(s2t,lex_s2t[s][t]);
+        }
+        result*=s2t;
+    }
+    return result;
+}
 
 void RichPhraseTable::
 read(string filename){

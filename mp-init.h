@@ -33,8 +33,9 @@ struct Specs{
     int max_phrase_length;
     double max_length_ratio;
     int min_phrase_count;
+    double model1_threshold;
     Specs():max_sentence_length(40),max_phrase_length(5),max_length_ratio(4),
-            min_phrase_count(0){};
+            min_phrase_count(0),model1_threshold(1E-3){};
 };
 
 struct PhraseInfo {
@@ -61,10 +62,16 @@ struct SimplePhraseInfo {
 
 class LexDic : public unordered_map<string,map<string,double>>{
 public:
+    LexDic(){}
+    LexDic(const string& in){read(in);}
     bool read(const string& in);
 };
 
 double ScoreLex(vector<string>& src, vector<string>& tgt, LexDic& lex_s2t);
+double ScoreLex(vector<string>& src, vector<string>& tgt, LexDic& lex_s2t,
+                int i, int ilen, int j, int jlen);
+double VScoreLex(vector<string>& src, vector<string>& tgt, LexDic& lex_s2t,
+                int i, int ilen, int j, int jlen);
 
 class SimplePhraseTable : public
     map<string,map<string,SimplePhraseInfo>>{
@@ -121,6 +128,8 @@ bool ExtractPhrasePairs(const string& src,
                         double max_length_ratio,
                         int min_phrase_count,
                         bool inmemory,
+                        LexDic* lex_s2t,
+                        LexDic* lex_t2s,
                         SimplePhraseTable& pt,
                         CorpusCache* cache);
 

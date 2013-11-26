@@ -13,7 +13,8 @@
 class MP1{
 public:
     MP1(){ppt_=new SimplePhraseTable();}
-    void init(string src, string tgt, CorpusCache& cache);
+    void init(string src, string tgt,
+              string lex_s2t, string lex_t2s, CorpusCache& cache);
     virtual void expectation(CorpusCache& cache);
     virtual void em(CorpusCache& cache, int round,
                     const string& out, bool knsmoothing);

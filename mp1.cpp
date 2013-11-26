@@ -2,14 +2,21 @@
 extern Specs specs;
 
 void MP1::
-init(string src, string tgt, CorpusCache& cache){
+init(string src, string tgt, string lex_s2t, string lex_t2s, CorpusCache& cache){
     SimplePhraseTable& pt_=*ppt_;
+    LexDic* p_lex_s2t=NULL;
+    LexDic* p_lex_t2s=NULL;
+    if(lex_s2t!="")p_lex_s2t=new LexDic(lex_s2t);
+    if(lex_t2s!="")p_lex_t2s=new LexDic(lex_t2s);
+
     ExtractPhrasePairs(src,tgt,"",
                        specs.max_sentence_length,
                        specs.max_phrase_length,
                        specs.max_length_ratio,
                        specs.min_phrase_count,
                        true,
+                       p_lex_s2t,
+                       p_lex_t2s,
                        pt_,
                        &cache);
 }
@@ -45,6 +52,10 @@ expectation(CorpusCache& cache){
             for(int jlen=0;jlen<sp.l;jlen++){
                 if(target_probs[j][jlen]>1)
                     cerr<<"error :"<<target_probs[j][jlen]<<endl;
+                if(target_probs[j][0]==0){
+                    target_probs[j][0]=1E-7;
+                    //cerr<<"reset error target["<<j<<",0]"<<endl;
+                }
             }
         }
 
@@ -106,7 +117,7 @@ expectation(CorpusCache& cache){
                 segprob=before*after*target_probs[j][jlen]/backward[0];
 
                 if(segprob>1||segprob<=0){
-                    cerr<<"segprob "<<segprob<<","<<j<<","<<jlen<<endl;
+                    //cerr<<"segprob "<<segprob<<","<<j<<","<<jlen<<endl;
                 }
                 if(segprob<=0)continue;
                 for(int i=0;i<sp.n;i++){
