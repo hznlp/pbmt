@@ -59,24 +59,30 @@ expectation(CorpusCache& cache){
             }
         }
 
-        vector<double> forward(sp.m,0.0),backward(sp.m,0.0);
-        //forward[i] is the posterior probability of target words of 1...i+1
-        for(int i=0;i<sp.l&&i<sp.m;i++)
-            forward[i]=target_probs[0][i];
-        for(int i=1;i<(int)forward.size();i++){
-            for(int j=1;j<=sp.l&&i-j>=0;j++){
-                forward[i]+=forward[i-j]*target_probs[i-j+1][j-1];
-            }
+        vector<LogProb> forward(sp.m,0.0),backward(sp.m,0.0);
+        if(specs.logEM){
+            for(auto& i:forward)i=-1E10;
+            for(auto& i:backward)i=-1E10;
         }
-        
-        //backward[i] is the posterior probability of target words of i+1...m
-        for(int i=0;i<sp.l&&i<sp.m;i++)
-            backward[sp.m-i-1]=target_probs[sp.m-i-1][i];
-        for(int i=sp.m-2;i>=0;i--){
-            for(int j=1;j<=sp.l&&i+j<sp.m;j++){
-                backward[i]+=target_probs[i][j-1]*backward[i+j];
+
+            //forward[i] is the posterior probability of target words of 1...i+1
+            for(int i=0;i<sp.l&&i<sp.m;i++)
+                forward[i]=target_probs[0][i];
+            for(int i=1;i<(int)forward.size();i++){
+                for(int j=1;j<=sp.l&&i-j>=0;j++){
+                    forward[i]+=forward[i-j]*(LogProb)target_probs[i-j+1][j-1];
+
+                }
             }
-        }
+          //backward[i] is the posterior probability of target words of i+1...m
+
+            for(int i=0;i<sp.l&&i<sp.m;i++)
+                backward[sp.m-i-1]=target_probs[sp.m-i-1][i];
+            for(int i=sp.m-2;i>=0;i--){
+                for(int j=1;j<=sp.l&&i+j<sp.m;j++){
+                    backward[i]+=(LogProb)target_probs[i][j-1]*backward[i+j];
+                }
+            }
 
         //viterbi
         vector<pair<double,int> > viterbi(sp.m,pair<double,int>(0.0,0));
@@ -99,10 +105,10 @@ expectation(CorpusCache& cache){
         //cout<<"best seg:"<<sequence<<endl;
 
         //make sure forward[sp.m-1]==backward[0];
-        assert(backward[0]>0);
-        if(abs(forward[sp.m-1]-backward[0])>=1e-5*backward[0])
+        assert(backward[0]>(LogProb)0);
+        if(abs(forward[sp.m-1]-backward[0])>=(LogProb)1e-5*backward[0])
             cerr<<forward[sp.m-1]<<", "<<backward[0]<<endl;
-        assert(abs(forward[sp.m-1]-backward[0])<1e-5*backward[0]);
+        assert(abs(forward[sp.m-1]-backward[0])<(LogProb)1e-5*backward[0]);
         //cerr<<"backward[0]:"<<backward[0]<<endl;
         //collect fractional count for each phrase pair
         //fraccount=forward[j]*backward[j+jlen]*p(t|s)/backward[0];
@@ -110,12 +116,13 @@ expectation(CorpusCache& cache){
         for(int j=0;j<sp.m;j++){
             for(int jlen=0;jlen<sp.l&&j+jlen+1<=sp.m;jlen++){
                 double segprob=0;
-                double before=1;
-                double after=1;
+                LogProb before=1;
+                LogProb after=1;
                 if(j>0)before=forward[j-1];
                 if(j+jlen+1<sp.m)after=backward[j+jlen+1];
 
-                segprob=before*after*target_probs[j][jlen]/backward[0];
+                segprob=before*after*(LogProb)target_probs[j][jlen]
+                        /backward[0];
 
                 if(segprob>1||segprob<=0){
                     //cerr<<"segprob "<<segprob<<","<<j<<","<<jlen<<endl;

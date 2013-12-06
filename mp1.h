@@ -9,6 +9,7 @@
 #ifndef pbmt_mp1_h
 #define pbmt_mp1_h
 #include "mp-init.h"
+#include "logprob.h"
 
 class MP1{
 public:

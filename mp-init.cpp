@@ -458,7 +458,7 @@ bool ExtractPhrasePairs(const string& src,
                 SentenceCache((int)ssent.size(),(int)tsent.size(),5));
 
         vector<vector<vector<vector<double>>>> lexs2t_scores,lext2s_scores;
-        if(lex_s2t&&lex_t2s){
+        if(lex_s2t&&lex_t2s&&create_pt){
             VScoreLex(ssent,tsent,*lex_s2t,lexs2t_scores,specs.prune_threshold);
             VScoreLex(tsent,ssent,*lex_t2s,lext2s_scores,specs.prune_threshold);
         }

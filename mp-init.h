@@ -35,8 +35,9 @@ struct Specs{
     int min_phrase_count;
     double prune_threshold;
     int prune_method;
+    bool logEM;
     Specs():max_sentence_length(40),max_phrase_length(5),max_length_ratio(4),
-            min_phrase_count(0),prune_threshold(1E-3),prune_method(0){};
+            min_phrase_count(0),prune_threshold(1E-3),prune_method(0),logEM(false){};
 };
 
 struct PhraseInfo {
