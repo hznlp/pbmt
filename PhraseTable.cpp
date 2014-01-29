@@ -267,22 +267,19 @@ void mtuExtractor(string& src, string& tar, string& align, vector<string>& resul
     int maxUnAligned=2;
 	Alignment alignment(align,(int)srcSent.size(),(int)tarSent.size(), maxUnAligned);
     string newalign=alignment.modifiedAlignment(maxSpan);
-    cout<<src<<endl;
-    cout<<tar<<endl;
-    cout<<align<<endl;
-    cout<<newalign<<endl;
+
     //Alignment alignment(newalign,(int)srcSent.size(),(int)tarSent.size(), maxUnAligned);
 
-    for(int start=0;start<srcSent.size();start){
-        for(int stop=start;stop<srcSent.size();stop++){
+    for(int start=0;start<(int)srcSent.size();start++){
+        for(int stop=start;stop<(int)srcSent.size();stop++){
             pair<int,int> srcSpan=make_pair(start,stop);
             pair<int,int> tarSpan;
             if(alignment.alignment(srcSpan, tarSpan, S2T)==true){
                 string srcPhrase=range2phrase(srcSent,srcSpan,"_");
                 string tarPhrase=range2phrase(tarSent,tarSpan,"_");
                 result.push_back(srcPhrase+"=>"+tarPhrase);
-                cout<<srcPhrase+"=>"+tarPhrase<<endl;
-                start=stop+1;
+                //cout<<srcPhrase+"=>"+tarPhrase<<endl;
+                start=stop;
                 break;
             }
         }
@@ -423,12 +420,12 @@ logrize(double base)
 	map<string, map<string,PhraseRuleEntry> >::iterator iter;
 	for(iter=_dic.begin();iter!=_dic.end();iter++)
 	{
-		const string& s=iter->first;
+		//const string& s=iter->first;
 		map<string, PhraseRuleEntry>& entryMap=iter->second;
 		map<string,PhraseRuleEntry>::iterator iter2;
 		for(iter2=entryMap.begin();iter2!=entryMap.end();iter2++)
 		{
-			const string& t=iter2->first;
+			//const string& t=iter2->first;
 			PhraseRuleEntry& entry=iter2->second;
 			entry.logrize(base);
 		}
@@ -502,12 +499,12 @@ printTopEntrys(int topN, string filename)
 	map<string, map<string,PhraseRuleEntry> >::const_iterator iter;
 	for(iter=_dic.begin();iter!=_dic.end();iter++)
 	{
-		const string& s=iter->first;
+		//const string& s=iter->first;
 		const map<string, PhraseRuleEntry>& entryMap=iter->second;
 		map<string,PhraseRuleEntry>::const_iterator iter2;
 		for(iter2=entryMap.begin();iter2!=entryMap.end();iter2++)
 		{
-			const string& t=iter2->first;
+			//const string& t=iter2->first;
 			const PhraseRuleEntry& entry=iter2->second;
 			probs.push_back(entry.s2tScore);
 		}
@@ -520,12 +517,12 @@ printTopEntrys(int topN, string filename)
 	
 	for(iter=_dic.begin();iter!=_dic.end();iter++)
 	{
-		const string& s=iter->first;
+		//const string& s=iter->first;
 		const map<string, PhraseRuleEntry>& entryMap=iter->second;
 		map<string,PhraseRuleEntry>::const_iterator iter2;
 		for(iter2=entryMap.begin();iter2!=entryMap.end();iter2++)
 		{
-			const string& t=iter2->first;
+			//const string& t=iter2->first;
 			const PhraseRuleEntry& entry=iter2->second;
 			if(entry.s2tScore>=threshold)
 				entrys.push_back(entry);
@@ -556,7 +553,7 @@ normalize()
 		map<string,double>::const_iterator iter2;
 		for(iter2=entryMap.begin();iter2!=entryMap.end();iter2++)
 		{
-			const string& t=iter2->first;
+			//const string& t=iter2->first;
 			double entry=iter2->second;
 			srcCount[s]+=entry;
 		}
@@ -568,7 +565,7 @@ normalize()
 		map<string, double>::iterator iter2;
 		for(iter2=entryMap.begin();iter2!=entryMap.end();iter2++)
 		{
-			const string& t=iter2->first;
+			//const string& t=iter2->first;
 			double& entry=iter2->second;
 			entry=entry/srcCount[s];
 		}

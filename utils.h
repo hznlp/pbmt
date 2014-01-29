@@ -1,29 +1,31 @@
 #ifndef UTILS_H
 #define UTILS_H
 
+
+#include <string>
+#include <sstream>
+#include <iostream>
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+#include <cmath>
+#include <time.h>
+//#include <float.h>
+#include <vector>
+#include <map>
+using namespace std;
 #ifdef WIN32
 #define isNaN(x) _isnan(x)
 #define isFinite(x) _finite(x)
 #define isInf(x) !_finite(x)
 #define isBadNumber(x) (isNaN(x)||isInf(x))
 #else
-#define isNaN(x) isnan(x)
-#define isFinite(x) !isinf(x)
-#define isInf(x) isinf(x)
+#define isNaN(x) ::isnan(x)
+#define isFinite(x) !::isinf(x)
+#define isInf(x) ::isinf(x)
 #define isBadNumber(x) (isNaN(x)||isInf(x))
 #endif
 
-#include <string>
-#include <sstream>
-#include <iostream>
-#include <stdlib.h>
-#include <string.h>
-#include <math.h>
-#include <time.h>
-#include <float.h>
-#include <vector>
-#include <map>
-using namespace std;
 string intToString(int in);
 string doubleToString(double in);
 string& replaceSubStr(string& input, string oldSub, string newSub);

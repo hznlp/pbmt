@@ -619,13 +619,13 @@ string
 Alignment::
 modifiedAlignment(int maxSpan){
     set<pair<int,int> > a;
-    for(int i=0;i<_s2tVec.size();i++){
+    for(size_t i=0;i<_s2tVec.size();i++){
         for(int& j : _s2tVec[i]){
             a.insert(make_pair(i,j));
         }
     }
     //delete links which cause too long span
-    for(int i=0;i<_s2tVec.size();i++){
+    for(size_t i=0;i<_s2tVec.size();i++){
         vector<int>& v=_s2tVec[i];
         //delete links
         for(int& j : v){
@@ -634,7 +634,7 @@ modifiedAlignment(int maxSpan){
             }
         }
     }
-    for(int i=0;i<_t2sVec.size();i++){
+    for(size_t i=0;i<_t2sVec.size();i++){
         vector<int>& v=_t2sVec[i];
         //delete links
         for(int& j : v){
@@ -676,7 +676,7 @@ modifiedAlignment(int maxSpan){
         a.insert(make_pair(i,aVec[0].second));
     for(int i=aVec.back().first;i<_srcLen;i++)
         a.insert(make_pair(i,aVec.back().second));
-    for(int i=1;i<aVec.size()>0;i++){
+    for(int i=1;i<(int)aVec.size();i++){
         for(int j=aVec[i-1].first+1;j<aVec[i].first;j++){
             a.insert(make_pair(j,aVec[i-1].second));
         }
@@ -691,7 +691,7 @@ modifiedAlignment(int maxSpan){
         a.insert(make_pair(aVec[0].second,i));
     for(int i=aVec.back().first;i<_tarLen;i++)
         a.insert(make_pair(aVec.back().second,i));
-    for(int i=1;i<aVec.size()>0;i++){
+    for(int i=1;i<(int)aVec.size();i++){
         for(int j=aVec[i-1].first+1;j<aVec[i].first;j++){
             a.insert(make_pair(aVec[i-1].second,j));
         }
