@@ -208,6 +208,17 @@ bool induceLexScore(const vector<string>& srcSentence,
 	return true;
 }
 
+string range2phrase(vector<string>& sent, pair<int,int> range, string deliminator=" ")
+{
+	string result="";
+	for(int i=range.first;i<=range.second;i++)
+	{
+		result+=sent[i];
+		if(i!=range.second)result+=deliminator;
+	}
+	return result;
+}
+
 void phraseExtractor(string& src, string& tar, string& align, Dic<double>& s2tLexDic, Dic<double>& t2sLexDic, vector<PhraseRuleEntry>& phraseRules,int srcLengthLimit,	int tarLengthLimit, int maxUnAligned, double weight)
 {
 	if(weight<=0)return;
@@ -247,16 +258,37 @@ void phraseExtractor(string& src, string& tar, string& align, Dic<double>& s2tLe
 	}
 }
 
-string range2phrase(vector<string>& sent, pair<int,int> range)
+void mtuExtractor(string& src, string& tar, string& align, vector<string>& result, int maxSpan)
 {
-	string result="";
-	for(int i=range.first;i<=range.second;i++)
-	{
-		result+=sent[i];
-		if(i!=range.second)result+=" ";
-	}
-	return result;
+	vector<string> srcSent,tarSent;
+	stringToVector(src,srcSent);
+	stringToVector(tar,tarSent);
+    if(srcSent.empty())return;
+    int maxUnAligned=2;
+	Alignment alignment(align,(int)srcSent.size(),(int)tarSent.size(), maxUnAligned);
+    string newalign=alignment.modifiedAlignment(maxSpan);
+    cout<<src<<endl;
+    cout<<tar<<endl;
+    cout<<align<<endl;
+    cout<<newalign<<endl;
+    //Alignment alignment(newalign,(int)srcSent.size(),(int)tarSent.size(), maxUnAligned);
+
+    for(int start=0;start<srcSent.size();start){
+        for(int stop=start;stop<srcSent.size();stop++){
+            pair<int,int> srcSpan=make_pair(start,stop);
+            pair<int,int> tarSpan;
+            if(alignment.alignment(srcSpan, tarSpan, S2T)==true){
+                string srcPhrase=range2phrase(srcSent,srcSpan,"_");
+                string tarPhrase=range2phrase(tarSent,tarSpan,"_");
+                result.push_back(srcPhrase+"=>"+tarPhrase);
+                cout<<srcPhrase+"=>"+tarPhrase<<endl;
+                start=stop+1;
+                break;
+            }
+        }
+    }
 }
+
 
 void range2positions(pair<int,int> range, vector<int>& positions)
 {

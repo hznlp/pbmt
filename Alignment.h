@@ -42,6 +42,7 @@ public:
 	void print_alignableBoundarys(ostream& os)const;
 	void print_phrases(ostream& os)const;
 	map<pair<int,int>, pair<int,int> >& s2tBoundaryMap() {return _s2tBoundaryMap;}
+    string modifiedAlignment(int maxSpan);
 private:
 	void setupMap(const string& str);
 	void setupBoundaryMapAndVec();

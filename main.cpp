@@ -19,9 +19,10 @@ void usage()
 {
 	cerr<<R"(
         pbmt -extractPhrase -src=[sourcefile] -tar=[targetfile] -align=[alignment] [-s2tLex=file]
-            [-t2sLex=file] [-w=weightfile] 
-            [-normalize=true|false] [-reverse] [-srcLengthLimit=int] [-tarLengthLimit=int] [-maxNumOfUnAlignedWords=int]
-	        [-printTopEntrys=int] [-onlyonefeat] [-threshold=double] [moore=bool]
+            [-t2sLex=file] [-w=weightfile]
+            [-normalize=true|false] [-reverse] [-srcLengthLimit=int] [-tarLengthLimit=int]
+            [-maxNumOfUnAlignedWords=int]  [-printTopEntrys=int] [-onlyonefeat] [-threshold=double] [moore=bool]
+        pbmt -mtu -src=[sourcefile] -tar=[targetfile] -align=[alignment] -o=[outputfile] [-ld=S2T|T2S]
         pbmt -makeLexDic -src=[sourcefile] -tar=[targetfile] -align=[alignment] [-w=weightfile] 
             [-s2t=filename] [-t2s=filename]
         pbmt -decode -pt=[phrase table file] -dmax=[max distortion limit] -beam=[beam size] -weights=[d:d:d...]
@@ -29,6 +30,7 @@ void usage()
             [-walltime=time] [-pmem=mem] [-queue=node]
         pbmt -rule_refinement -i=raw_rules
         pbmt -reprintLexDic -i=file
+        pbmt -mtu -src=[sourcefile] -tar=[targetfile] -align=[alignment] -o=[output] [-maxWordSpan=3]
 
 )";
 	exit(1);
@@ -168,8 +170,7 @@ void makeLexDic(JKArgs& args)
 	t2s.close();
 }
 
-void extractPhrase(JKArgs& args)
-{
+void extractPhrase(JKArgs& args){
 	if(!args.is_set("src")||!args.is_set("tar")||!args.is_set("align"))
 		usage();
 	ifstream fsrc(args.value("src").c_str()),ftar(args.value("tar").c_str()),falign(args.value("align").c_str());
@@ -257,6 +258,64 @@ void extractPhrase(JKArgs& args)
 	if(args.is_set("onlyonefeat"))
 		onlyonefeat=true;
 	if(os.good())phraseTable.print(os,onlyonefeat);
+	string signal="mftsignal";
+	if(args.is_set("signal"))signal=args.value("signal");
+	ofstream o_sg(signal.c_str());
+	o_sg.close();
+}
+
+string revertAlign(string& align){
+    replaceSubStr(align,"-"," ");
+    stringstream ss(align);
+    string result="";
+    while(ss.good()){
+        int i=-1;
+        int j=-1;
+        ss>>i>>j;
+        if(i>=0&&j>=0)
+            result+=to_string(j)+"-"+to_string(i)+" ";
+    }
+    return result;
+}
+
+void mtu(JKArgs& args){
+	if(!args.is_set("src")||!args.is_set("tar")||!args.is_set("align")||!args.is_set("o"))
+		usage();
+	ofstream os(args.value("o"));
+    ifstream fsrc(args.value("src").c_str()),ftar(args.value("tar").c_str()),falign(args.value("align").c_str());
+    LangDirection ld=S2T;
+    if(args.value("ld")=="T2S")ld=T2S;
+	double start=1,stop=1E10;
+    int maxWordSpan=3;
+    if(args.is_set("maxWordSpan"))maxWordSpan=atoi(args.value("maxWordSpan").c_str());
+	if(args.is_set("range"))
+	{
+		string range=args.value("range");
+		start=atoi(range.substr(0,range.find("-")).c_str());
+		stop=atof(range.substr(range.find("-")+1).c_str());
+		cerr<<"start:"<<start<<",stop:"<<stop<<endl;
+	}
+    int count=0;
+	while(!falign.eof())
+	{
+		string align="",src="",tar="";
+		getline(falign,align);
+		getline(fsrc,src);
+		getline(ftar,tar);
+
+		//Alignment alignment(align,maxNumOfUnAlignedWords);
+        if(ld==T2S){align=revertAlign(align);swap(src,tar);}
+		count++;
+		if(count<start)continue;
+		if(count>stop)break;
+        vector<string> mtus;
+        mtuExtractor(src,tar,align,mtus,maxWordSpan);
+		for(auto& m:mtus){
+            cout<<m<<" ";
+		}
+        cout<<endl;
+	}
+	os.close();
 	string signal="mftsignal";
 	if(args.is_set("signal"))signal=args.value("signal");
 	ofstream o_sg(signal.c_str());
@@ -439,6 +498,8 @@ int main(int argc, char** argv)
 
 	if(args.is_set("extractPhrase"))
 		extractPhrase(args);
+    else if(args.is_set("mtu"))
+		mtu(args);
 	else if(args.is_set("makeLexDic"))
 		makeLexDic(args);
 	else if(args.is_set("decode"))

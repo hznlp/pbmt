@@ -10,6 +10,15 @@
 #include "Direction.h"
 using namespace std;
 
+inline vector<double> entryCombine(const vector<double>& d1, const vector<double>& d2){vector<double> tmp; tmp.clear(); for(size_t i=0;i<d1.size()&&i<d2.size();i++)tmp.push_back(d1[i]+d2[i]); return tmp;}
+inline vector<double>& updateMinEntry(const vector<double>& d1, vector<double>& minD){for(size_t i=0;i<d1.size()&&i<minD.size();i++)minD[i]=min(d1[i],minD[i]); return minD;}
+inline vector<double>& updateMaxEntry(const vector<double>& d1, vector<double>& maxD){for(size_t i=0;i<d1.size()&&i<maxD.size();i++)maxD[i]=max(d1[i],maxD[i]); return maxD;}
+inline ostream& operator << (ostream& os, const vector<double>& ds){for(size_t i=0;i<ds.size();i++){os<<ds[i];if(i!=ds.size()-1)os<<" ";}return os;}
+
+inline double entryCombine(double& d1, double& d2){return d1+d2;}
+inline double& updateMinEntry(double& d1, double& minD){minD=min(d1,minD); return minD;}
+inline double& updateMaxEntry(double& d1, double& maxD){maxD=max(d1,maxD); return maxD;}
+
 template<class Entry>
 class Dic
 {
@@ -200,13 +209,6 @@ private:
 	Dic<Entry> _t2s;
 };
 
-inline vector<double> entryCombine(const vector<double>& d1, const vector<double>& d2){vector<double> tmp; tmp.clear(); for(size_t i=0;i<d1.size()&&i<d2.size();i++)tmp.push_back(d1[i]+d2[i]); return tmp;}
-inline vector<double>& updateMinEntry(const vector<double>& d1, vector<double>& minD){for(size_t i=0;i<d1.size()&&i<minD.size();i++)minD[i]=min(d1[i],minD[i]); return minD;}
-inline vector<double>& updateMaxEntry(const vector<double>& d1, vector<double>& maxD){for(size_t i=0;i<d1.size()&&i<maxD.size();i++)maxD[i]=max(d1[i],maxD[i]); return maxD;}
-inline ostream& operator << (ostream& os, const vector<double>& ds){for(size_t i=0;i<ds.size();i++){os<<ds[i];if(i!=ds.size()-1)os<<" ";}return os;}
 
-inline double entryCombine(double& d1, double& d2){return d1+d2;}
-inline double& updateMinEntry(double& d1, double& minD){minD=min(d1,minD); return minD;}
-inline double& updateMaxEntry(double& d1, double& maxD){maxD=max(d1,maxD); return maxD;}
 
 #endif

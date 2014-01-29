@@ -117,8 +117,7 @@ updateLog(double p)
 }
 
 void
-calculateDiscount(vector<double>& coc, vector<double>& discount)
-{
+calculateDiscount(vector<double>& coc, vector<double>& discount){
 	discount.clear();
 	double n1=coc[0];
 	double n2=coc[1];

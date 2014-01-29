@@ -614,3 +614,93 @@ numOfUnAlignedBoundWords(const pair<int,int>& boundary, LangSide ls)const
 	}
 	return count;
 }
+
+string
+Alignment::
+modifiedAlignment(int maxSpan){
+    set<pair<int,int> > a;
+    for(int i=0;i<_s2tVec.size();i++){
+        for(int& j : _s2tVec[i]){
+            a.insert(make_pair(i,j));
+        }
+    }
+    //delete links which cause too long span
+    for(int i=0;i<_s2tVec.size();i++){
+        vector<int>& v=_s2tVec[i];
+        //delete links
+        for(int& j : v){
+            if(j-v.front()>maxSpan){
+                a.erase(make_pair(i,j));
+            }
+        }
+    }
+    for(int i=0;i<_t2sVec.size();i++){
+        vector<int>& v=_t2sVec[i];
+        //delete links
+        for(int& j : v){
+            if(j-v.front()>maxSpan){
+                a.erase(make_pair(j,i));
+            }
+        }
+    }
+    //delete links which cause failure in a greedy mtu extraction process
+    string result="";
+    for(auto& p:a){
+        result+=to_string(p.first)+"-"+to_string(p.second)+" ";
+    }
+    init(result,_srcLen,_tarLen);
+    for(int start=0;start<_srcLen;start++){
+        bool success=false;
+        for(int stop=start;stop<_srcLen;stop++){
+            pair<int,int> srcSpan=make_pair(start,stop);
+            if(isAlignable(srcSpan, SRC)==true){
+                success=true;
+                start=stop;
+                break;
+            }
+        }
+        if(!success){
+            vector<int>& v=_s2tVec[start];
+            for(int& j : v){
+                a.erase(make_pair(start,j));
+            }
+        }
+    }
+    if(a.size()==0)return "";
+    //assign alignment for source unaligned words
+    vector<pair<int,int>> aVec;
+    for(auto& p:a)
+        aVec.push_back(p);
+    sort(aVec.begin(),aVec.end());
+    for(int i=0;i<aVec[0].first;i++)
+        a.insert(make_pair(i,aVec[0].second));
+    for(int i=aVec.back().first;i<_srcLen;i++)
+        a.insert(make_pair(i,aVec.back().second));
+    for(int i=1;i<aVec.size()>0;i++){
+        for(int j=aVec[i-1].first+1;j<aVec[i].first;j++){
+            a.insert(make_pair(j,aVec[i-1].second));
+        }
+    }
+
+    //assign alignment for target unaligned words
+    aVec.clear();
+    for(auto& p:a)
+        aVec.push_back(make_pair(p.second,p.first));
+    sort(aVec.begin(),aVec.end());
+    for(int i=0;i<aVec[0].first;i++)
+        a.insert(make_pair(aVec[0].second,i));
+    for(int i=aVec.back().first;i<_tarLen;i++)
+        a.insert(make_pair(aVec.back().second,i));
+    for(int i=1;i<aVec.size()>0;i++){
+        for(int j=aVec[i-1].first+1;j<aVec[i].first;j++){
+            a.insert(make_pair(aVec[i-1].second,j));
+        }
+    }
+
+    result="";
+    for(auto& p:a){
+        result+=to_string(p.first)+"-"+to_string(p.second)+" ";
+    }
+    init(result,_srcLen,_tarLen);
+    return result;
+}

@@ -47,6 +47,9 @@ void phraseExtractor(string& src,
 	int tarLengthLimit=12,
 	int maxUnAligned=2,
 	double weight=1);
+void mtuExtractor(string& src, string& tar, string& align,
+                  vector<string>& result,int maxSpan);
+
 
 PhraseRuleEntry entryCombine(PhraseRuleEntry& me1, PhraseRuleEntry& me2);
 PhraseRuleEntry& updateMinEntry(PhraseRuleEntry& me, PhraseRuleEntry& minEntry);
@@ -59,7 +62,7 @@ inline ostream& operator << (ostream& os, const PhraseRuleEntry& me)
 	return os;
 }
 
-string range2phrase(vector<string>& sent, pair<int,int> range);
+string range2phrase(vector<string>& sent, pair<int,int> range, string deliminator);
 void range2positions(pair<int,int> range, vector<int>& positions);
 inline bool operator < (const PhraseRuleEntry& e1, const PhraseRuleEntry& e2){return e1.s2tScore<e2.s2tScore;}
 #endif

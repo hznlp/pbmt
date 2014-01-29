@@ -65,24 +65,25 @@ expectation(CorpusCache& cache){
             for(auto& i:backward)i=-1E10;
         }
 
-            //forward[i] is the posterior probability of target words of 1...i+1
-            for(int i=0;i<sp.l&&i<sp.m;i++)
-                forward[i]=target_probs[0][i];
-            for(int i=1;i<(int)forward.size();i++){
-                for(int j=1;j<=sp.l&&i-j>=0;j++){
-                    forward[i]+=forward[i-j]*(LogProb)target_probs[i-j+1][j-1];
+        //forward[i] is the posterior probability of target words of 1...i+1
+        for(int i=0;i<sp.l&&i<sp.m;i++)
+            forward[i]=target_probs[0][i];
+        for(int i=1;i<(int)forward.size();i++){
+            for(int j=1;j<=sp.l&&i-j>=0;j++){
+                forward[i]+=forward[i-j]*(LogProb)target_probs[i-j+1][j-1];
 
-                }
             }
-          //backward[i] is the posterior probability of target words of i+1...m
+        }
 
-            for(int i=0;i<sp.l&&i<sp.m;i++)
-                backward[sp.m-i-1]=target_probs[sp.m-i-1][i];
-            for(int i=sp.m-2;i>=0;i--){
-                for(int j=1;j<=sp.l&&i+j<sp.m;j++){
-                    backward[i]+=(LogProb)target_probs[i][j-1]*backward[i+j];
-                }
+        //backward[i] is the posterior probability of target words of i+1...m
+
+        for(int i=0;i<sp.l&&i<sp.m;i++)
+            backward[sp.m-i-1]=target_probs[sp.m-i-1][i];
+        for(int i=sp.m-2;i>=0;i--){
+            for(int j=1;j<=sp.l&&i+j<sp.m;j++){
+                backward[i]+=(LogProb)target_probs[i][j-1]*backward[i+j];
             }
+        }
 
         //viterbi
         vector<pair<double,int> > viterbi(sp.m,pair<double,int>(0.0,0));
